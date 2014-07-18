@@ -573,7 +573,7 @@ public class VoldemortConfig implements Serializable {
                                                              10000);
 
         // RocksDB config
-        this.rdbDataDirectory = props.getString("rdb.data.dir", "/tmp/rdb_data_dir");
+        this.rdbDataDirectory = props.getString("rocksdb.data.dir", "/tmp/rdb_data_dir");
 
         validateParams();
     }
@@ -3250,7 +3250,7 @@ public class VoldemortConfig implements Serializable {
    * Where RocksDB should put its data directories
    *
    * <ul>
-   * <li>Property :"rdb.data.dir"</li>
+   * <li>Property :"rocksdb.data.dir"</li>
    * <li>Default : "/tmp/rdb_data_dir"</li>
    * </ul>
 
