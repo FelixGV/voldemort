@@ -121,7 +121,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
     private final Set<BuildAndPushHook> hooks = new HashSet<BuildAndPushHook>();
     private final int heartBeatHookIntervalTime;
-    private final HeartBeatHookThread heartBeatHookThread;
+    private final HeartBeatHookRunnable heartBeatHookRunnable;
 
     public VoldemortBuildAndPushJob(String name, Props props) {
         super(name);
@@ -184,7 +184,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         // Initializing hooks
         heartBeatHookIntervalTime = props.getInt("heartbeat.hook.interval.ms", 10000);
-        heartBeatHookThread = new HeartBeatHookThread(heartBeatHookIntervalTime);
+        heartBeatHookRunnable = new HeartBeatHookRunnable(heartBeatHookIntervalTime);
         String hookNamesText = props.getString("hooks");
         if (hookNamesText != null && !hookNamesText.isEmpty()) {
             Properties javaProps = props.toProperties();
@@ -295,7 +295,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public void run() throws Exception {
         invokeHooks(BuildAndPushStatus.STARTING);
         if (hooks.size() > 0) {
-            heartBeatHookThread.run();
+            Thread t = new Thread(heartBeatHookRunnable);
+            t.setDaemon(true);
+            t.start();
         }
 
         try {
@@ -426,7 +428,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     }
 
     private void cleanUp() {
-        heartBeatHookThread.stop();
+        heartBeatHookRunnable.stop();
     }
 
     /**
@@ -1034,11 +1036,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         }
     }
 
-    private class HeartBeatHookThread implements Runnable {
+    private class HeartBeatHookRunnable implements Runnable {
         final int sleepTimeMs;
         boolean keepRunning = true;
 
-        HeartBeatHookThread(int sleepTimeMs) {
+        HeartBeatHookRunnable(int sleepTimeMs) {
             this.sleepTimeMs = sleepTimeMs;
         }
 
