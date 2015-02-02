@@ -546,6 +546,7 @@ dependencies {
     compile 'com.linkedin.pegasus:r2:1.8.3'
     compile 'com.linkedin.pegasus:data:1.8.3'
     compile 'com.linkedin.pegasus:pegasus-common:1.8.3'
+    compile 'com.linkedin.azkaban:azkaban:2.5.0'
 
     compile 'com.google.code.typica:typica:1.7.2'
     compile 'com.sna-projects.krati:krati:0.4.9'
