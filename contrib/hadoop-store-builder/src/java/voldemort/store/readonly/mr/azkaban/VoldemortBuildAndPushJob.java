@@ -786,6 +786,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             + keyField.schema() + "</schema-info>\n\t";
                 }
             }
+        } catch (VoldemortException e) {
+            throw e;
         } catch (Exception e) {
             throw new VoldemortException("Error while trying to extract the key field", e);
         }
@@ -807,6 +809,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     }
                 }
             }
+        } catch (VoldemortException e) {
+            throw e;
         } catch (Exception e) {
             throw new VoldemortException("Error while trying to extract the value field", e);
         }
