@@ -167,7 +167,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         // Initializing hooks
         heartBeatHookIntervalTime = props.getInt("heartbeat.hook.interval.ms", 60000);
         heartBeatHookRunnable = new HeartBeatHookRunnable(heartBeatHookIntervalTime);
-        String hookNamesText = props.getString("hooks");
+        String hookNamesText = props.getString("hooks", null);
         if (hookNamesText != null && !hookNamesText.isEmpty()) {
             Properties javaProps = props.toProperties();
             for (String hookName : Utils.COMMA_SEP.split(hookNamesText.trim())) {
