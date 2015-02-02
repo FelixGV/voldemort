@@ -371,11 +371,14 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         } catch (Exception e) {
             log.error("An exception occurred during Build and Push !!", e);
             fail(e.toString());
+            throw e;
         } catch (Throwable t) {
             // This is for OOMs, StackOverflows and other uber nasties...
             // We'll try to invoke hooks but all bets are off at this point :/
             log.fatal("A non-Exception Throwable was caught! (OMG) We will try to invoke hooks on a best effort basis...", t);
             fail(t.toString());
+            // N.B.: Azkaban's AbstractJob#run throws Exception, not Throwable, so we can't rethrow directly...
+            throw new Exception("A non-Exception Throwable was caught! Bubbling it up as an Exception...", t);
         }
     }
 
