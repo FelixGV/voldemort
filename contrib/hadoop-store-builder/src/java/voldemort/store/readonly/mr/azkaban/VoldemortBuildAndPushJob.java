@@ -828,7 +828,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             if(props.containsKey(BUILD_FORCE_SCHEMA_KEY)) {
                 keySchema = props.get(BUILD_FORCE_SCHEMA_KEY);
             } else {
-                Schema.Field keyField = schema.getField(valueFieldName);
+                Schema.Field keyField = schema.getField(keyFieldName);
                 if (keyField == null) {
                     throw new VoldemortException("The configured key field (" + keyFieldName + ") was not found in the input data.");
                 } else {
@@ -841,7 +841,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         } catch (Exception e) {
             throw new VoldemortException("Error while trying to extract the key field", e);
         }
-
 
         try {
             if(props.containsKey(BUILD_FORCE_SCHEMA_VALUE)) {
