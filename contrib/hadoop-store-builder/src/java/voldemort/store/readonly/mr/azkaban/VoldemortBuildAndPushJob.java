@@ -16,13 +16,8 @@
 
 package voldemort.store.readonly.mr.azkaban;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -34,9 +29,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import org.apache.avro.Schema;
 import org.apache.commons.lang.Validate;
@@ -63,12 +55,11 @@ import voldemort.store.readonly.mr.utils.JsonSchema;
 import voldemort.store.readonly.mr.utils.VoldemortUtils;
 import voldemort.utils.ReflectUtils;
 import voldemort.utils.Utils;
-import azkaban.common.jobs.AbstractJob;
-import azkaban.common.utils.Props;
+import azkaban.jobExecutor.AbstractJob;
+import azkaban.utils.Props;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class VoldemortBuildAndPushJob extends AbstractJob {
@@ -110,11 +101,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
     private final String hdfsFetcherPort;
     private final String hdfsFetcherProtocol;
-
-    // TODO: Clean up Informed code from OSS.
-    private final String informedURL = "http://informed.corp.linkedin.com/_post";
-    private final List<Future> informedResults;
-    private ExecutorService informedExecutor;
 
     private String jsonKeyField;
     private String jsonValueField;
@@ -170,7 +156,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     private final static String SAVE_KEYS = "save.keys";
 
     public VoldemortBuildAndPushJob(String name, Props props) {
-        super(name);
+        super(name, Logger.getLogger(VoldemortBuildAndPushJob.class.getName()));
         this.props = props;
         this.storeName = props.getString(PUSH_STORE_NAME).trim();
         this.clusterUrl = new ArrayList<String>();
@@ -197,10 +183,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         this.nodeId = props.getInt(PUSH_NODE, 0);
         this.log = Logger.getLogger(name);
-
-        // TODO: Clean up Informed code from OSS.
-        this.informedResults = Lists.newArrayList();
-        this.informedExecutor = Executors.newFixedThreadPool(2);
 
         this.hdfsFetcherProtocol = props.getString(VOLDEMORT_FETCHER_PROTOCOL, "hftp");
         this.hdfsFetcherPort = props.getString(VOLDEMORT_FETCHER_PORT, "50070");
@@ -392,10 +374,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     if (log.isDebugEnabled()) {
                         log.debug("Informing about push start ...");
                     }
-                    // TODO: Clean up Informed code from OSS.
-                    informedResults.add(this.informedExecutor.submit(new InformedClient(this.props,
-                            "Running",
-                            this.getId())));
                     log.info("Pushing to clusterURl" + clusterUrl.get(index));
                     // If we are not building and just pushing then we want to get the built
                     // from the dataDirs, or else we will just the one that we built earlier
@@ -410,10 +388,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         }
                         invokeHooks(BuildAndPushStatus.PUSHING, url);
                         runPushStore(props, url, buildOutputDir);
-                        // TODO: Clean up Informed code from OSS.
-                        informedResults.add(this.informedExecutor.submit(new InformedClient(this.props,
-                                "Finished",
-                                this.getId())));
                     } catch(Exception e) {
                         log.error("Exception during push for url " + url, e);
                         exceptions.put(url, e);
@@ -430,16 +404,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 HadoopUtils.deletePathIfExists(jobConf, buildOutputDir);
                 log.info("Deleted " + buildOutputDir);
             }
-
-            // TODO: Clean up Informed code from OSS.
-            for (Future result: informedResults) {
-                try {
-                    result.get();
-                } catch(Exception e) {
-                    this.log.error("Exception in consumer", e);
-                }
-            }
-            this.informedExecutor.shutdownNow();
 
             if (exceptions.size() == 0) {
                 invokeHooks(BuildAndPushStatus.FINISHED);
@@ -1109,79 +1073,4 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             }
         }
     }
-
-    // TODO: Clean up Informed code from OSS.
-    private class InformedClient implements Runnable {
-
-        private Props props;
-        private String status;
-        private String source;
-
-        public InformedClient(Props props, String status, String source) {
-            this.props = props;
-            this.status = status;
-            this.source = source;
-        }
-
-        @SuppressWarnings("unchecked")
-        public void run() {
-            try {
-                URL url = new URL(informedURL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setDoInput(true);
-                conn.setRequestProperty("Content-Type", "application/json");
-
-                String storeName = this.props.getString(PUSH_STORE_NAME, "null");
-                String clusterName = this.props.getString(PUSH_CLUSTER, "null");
-                String owners = this.props.getString(PUSH_STORE_OWNERS, "null");
-                String replicationFactor = this.props.getString(BUILD_REPLICATION_FACTOR,
-                                                                "null");
-
-                // JSON Object did not work for some reason. Hence doing my own
-                // Json.
-                String message = "Store : " + storeName.replaceAll("[\'\"]", "") + ",  Status : "
-                                 + this.status.replaceAll("[\'\"]", "") + ",  URL : "
-                                 + clusterName.replaceAll("[\'\"]", "") + ",  owners : "
-                                 + owners.replaceAll("[\'\"]", "") + ",  replication : "
-                                 + replicationFactor.replaceAll("[\'\"]", "");
-                String payloadStr = "{\"message\":\"" + message
-                                    + "\",\"topic\":\"build-and-push\",\"source\":\"" + this.source
-                                    + "\",\"user\":\"bandp\"}";
-                if(log.isDebugEnabled())
-                    log.debug("Payload : " + payloadStr);
-
-                OutputStream out = conn.getOutputStream();
-                out.write(payloadStr.getBytes());
-                out.close();
-
-                if(conn.getResponseCode() != 200) {
-                    System.out.println(conn.getResponseCode());
-                    log.error("Illegal response : " + conn.getResponseMessage());
-                    throw new IOException(conn.getResponseMessage());
-                }
-
-                // Buffer the result into a string
-                BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while((line = rd.readLine()) != null) {
-                    sb.append(line);
-                }
-                rd.close();
-
-                if(log.isDebugEnabled())
-                    log.debug("Received response: " + sb);
-
-                conn.disconnect();
-
-            } catch(Exception e) {
-                log.error(e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-    }
-
 }

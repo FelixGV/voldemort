@@ -67,8 +67,8 @@ import voldemort.store.StoreDefinition;
 import voldemort.utils.ByteUtils;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
-import azkaban.common.utils.Props;
-import azkaban.common.utils.UndefinedPropertyException;
+import azkaban.utils.Props;
+import azkaban.utils.UndefinedPropertyException;
 
 /**
  * Helper functions for Hadoop
@@ -366,7 +366,7 @@ public class HadoopUtils {
      * @return The Configuration with all the new properties
      */
     public static void copyInAllProps(Props props, Configuration conf) {
-        for(String key: props.keySet())
+        for(String key: props.getKeySet())
             conf.set(key, props.get(key));
     }
 
