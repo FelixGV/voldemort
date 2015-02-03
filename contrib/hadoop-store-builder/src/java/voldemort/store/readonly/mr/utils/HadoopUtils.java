@@ -65,10 +65,10 @@ import voldemort.serialization.json.JsonTypeDefinition;
 import voldemort.serialization.json.JsonTypes;
 import voldemort.store.StoreDefinition;
 import voldemort.utils.ByteUtils;
+import voldemort.utils.UndefinedPropertyException;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
 import azkaban.utils.Props;
-import azkaban.utils.UndefinedPropertyException;
 
 /**
  * Helper functions for Hadoop
