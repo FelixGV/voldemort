@@ -47,6 +47,8 @@ import voldemort.serialization.json.JsonTypeDefinition;
 import voldemort.store.StoreDefinition;
 import voldemort.store.readonly.checksum.CheckSum;
 import voldemort.store.readonly.checksum.CheckSum.CheckSumType;
+import voldemort.store.readonly.hooks.BuildAndPushHook;
+import voldemort.store.readonly.hooks.BuildAndPushStatus;
 import voldemort.store.readonly.mr.azkaban.VoldemortStoreBuilderJob.VoldemortStoreBuilderConf;
 import voldemort.store.readonly.mr.azkaban.VoldemortSwapJob.VoldemortSwapConf;
 import voldemort.store.readonly.mr.utils.AvroUtils;
