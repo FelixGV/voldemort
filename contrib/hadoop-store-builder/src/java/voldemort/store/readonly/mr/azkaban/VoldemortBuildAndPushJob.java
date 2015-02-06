@@ -158,7 +158,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String HOOKS = "hooks";
 
     public VoldemortBuildAndPushJob(String name, Props props) {
-        super(name, Logger.getLogger(VoldemortBuildAndPushJob.class.getName()));
+        super(name, Logger.getLogger(name));
+        this.log = getLog();
+        log.info("Job props.toString(): " + props.toString());
+
         this.props = props;
         this.storeName = props.getString(PUSH_STORE_NAME).trim();
         this.clusterUrl = new ArrayList<String>();
@@ -184,7 +187,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             throw new RuntimeException("Number of data dirs should be atleast 1");
 
         this.nodeId = props.getInt(PUSH_NODE, 0);
-        this.log = Logger.getLogger(name);
 
         this.hdfsFetcherProtocol = props.getString(VOLDEMORT_FETCHER_PROTOCOL, "hftp");
         this.hdfsFetcherPort = props.getString(VOLDEMORT_FETCHER_PORT, "50070");
