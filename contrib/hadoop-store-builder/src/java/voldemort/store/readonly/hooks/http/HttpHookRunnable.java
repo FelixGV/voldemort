@@ -14,17 +14,20 @@ import java.net.URL;
  */
 class HttpHookRunnable implements Runnable {
 
+    private String hookName;
     private Logger log;
     private String urlToCall;
     private HttpMethod httpMethod;
     private String contentType;
     private String requestBody;
 
-    public HttpHookRunnable(Logger log,
+    public HttpHookRunnable(String hookName,
+                            Logger log,
                             String urlToCall,
                             HttpMethod httpMethod,
                             String contentType,
                             String requestBody) {
+        this.hookName = hookName;
         this.log = log;
         this.urlToCall = urlToCall;
         this.httpMethod = httpMethod;
@@ -46,12 +49,6 @@ class HttpHookRunnable implements Runnable {
             out.write(requestBody.getBytes());
             out.close();
 
-            if(conn.getResponseCode() != 200) {
-                System.out.println(conn.getResponseCode());
-                log.error("Illegal response : " + conn.getResponseMessage());
-                throw new IOException(conn.getResponseMessage());
-            }
-
             if(log.isDebugEnabled()) {
                 // Buffer the result into a string
                 BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
@@ -64,9 +61,15 @@ class HttpHookRunnable implements Runnable {
                 log.debug("Received response: " + sb);
             }
 
+            if(conn.getResponseCode() != 200) {
+                System.out.println(conn.getResponseCode());
+                log.error("Illegal response received from " + httpMethod + " request to " + urlToCall);
+                throw new IOException(conn.getResponseCode() + ": " + conn.getResponseMessage());
+            }
+
             conn.disconnect();
         } catch(Exception e) {
-            log.error("An exception occurred while sending an HTTP request!", e);
+            log.error("Error while sending a request for a HttpHook [" + hookName + "]", e);
         }
     }
 }
