@@ -1,8 +1,7 @@
 package voldemort.store.readonly.hooks.http;
 
 import com.google.common.collect.Lists;
-import org.apache.log4j.Logger;
-import voldemort.store.readonly.hooks.BuildAndPushHook;
+import voldemort.store.readonly.hooks.AbstractBuildAndPushHook;
 import voldemort.store.readonly.hooks.BuildAndPushStatus;
 
 import java.util.List;
@@ -11,16 +10,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public abstract class HttpHook implements BuildAndPushHook {
-
-    protected final String thisClassName = this.getClass().getName();
-
-    // Logging
-    protected final Logger log = Logger.getLogger(thisClassName);
+public abstract class HttpHook extends AbstractBuildAndPushHook {
 
     // Config keys
-    private final String URL_TO_CALL = "hooks." + thisClassName + ".url";
-    private final String EXECUTOR_THREADS = "hooks." + thisClassName + ".num-threads";
+    private final String URL_TO_CALL = configKeyPrefix + "url";
+    private final String EXECUTOR_THREADS = configKeyPrefix + "num-threads";
 
     // Config values
     private String urlToCall = null;
@@ -36,18 +30,9 @@ public abstract class HttpHook implements BuildAndPushHook {
 
     @Override
     public void init(Properties properties) throws Exception {
-        this.urlToCall = properties.getProperty(URL_TO_CALL);
-        if (urlToCall == null || urlToCall.isEmpty()) {
-            throw new IllegalArgumentException("You must provide a URL via the '" +
-                    URL_TO_CALL + "' configuration key. The " + getName() + " will not run.");
-        }
-        try {
-            int numThreads = Integer.parseInt(properties.getProperty(EXECUTOR_THREADS, "1"));
-            this.executorService = Executors.newFixedThreadPool(numThreads);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("You must provide a valid integer when using the '" +
-                    EXECUTOR_THREADS + "' configuration key. The " + getName() + " will not run.");
-        }
+        this.urlToCall = getStringPropertyOrFail(properties, URL_TO_CALL);
+        int numThreads = getIntProperty(properties, EXECUTOR_THREADS, "1");
+        this.executorService = Executors.newFixedThreadPool(numThreads);
     }
 
     @Override
