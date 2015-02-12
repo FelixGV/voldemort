@@ -39,6 +39,7 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
     public void invoke(BuildAndPushStatus buildAndPushStatus, String s) {
         if (statusesToCallHookFor.contains(buildAndPushStatus)) {
             httpFutureResults.add(this.executorService.submit(new HttpHookRunnable(
+                    getName(),
                     log,
                     urlToCall,
                     getHttpMethod(buildAndPushStatus),
