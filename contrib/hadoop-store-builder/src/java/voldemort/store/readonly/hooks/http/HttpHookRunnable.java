@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -37,9 +38,11 @@ class HttpHookRunnable implements Runnable {
 
     @SuppressWarnings("unchecked")
     public void run() {
+        HttpURLConnection conn = null;
+        OutputStream out = null;
         try {
             URL url = new URL(urlToCall);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod(httpMethod.name());
             conn.setDoOutput(true);
             conn.setDoInput(true);
@@ -48,31 +51,64 @@ class HttpHookRunnable implements Runnable {
             if (log.isDebugEnabled())
                 log.debug(hookName + " request body: " + requestBody);
 
-            OutputStream out = conn.getOutputStream();
+            out = conn.getOutputStream();
             out.write(requestBody.getBytes());
-            out.close();
 
-            if(log.isDebugEnabled()) {
+            int responseCode = conn.getResponseCode();
+
+            if(responseCode != 200) {
+                log.error("Illegal response received from " + httpMethod + " request to " + urlToCall);
+                handleResponse(responseCode, conn.getErrorStream());
+                throw new IOException(responseCode + ": " + conn.getResponseMessage());
+            } else {
+                handleResponse(responseCode, conn.getInputStream());
+            }
+        } catch(Exception e) {
+            log.error("Error while sending a request for a HttpHook [" + hookName + "]", e);
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+            if (out != null) {
+                try {
+                    out.close();
+                } catch (IOException e) {
+                    // no-op
+                }
+            }
+
+        }
+    }
+
+    /**
+     * Can be overridden if you want to replace or supplement the debug handling for responses.
+     *
+     * @param responseCode
+     * @param inputStream
+     */
+    protected void handleResponse(int responseCode, InputStream inputStream) {
+        if(log.isDebugEnabled()) {
+            BufferedReader rd = null;
+            try {
                 // Buffer the result into a string
-                BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                rd = new BufferedReader(new InputStreamReader(inputStream));
                 StringBuilder sb = new StringBuilder();
                 String line;
                 while((line = rd.readLine()) != null) {
                     sb.append(line);
                 }
-                rd.close();
-                log.debug(hookName + " received response: " + sb);
+                log.debug(hookName + " received " + responseCode + " response: " + sb);
+            } catch (IOException e) {
+                log.debug("Error while reading response for HttpHook [" + hookName + "]", e);
+            } finally {
+                if (rd != null) {
+                    try {
+                        rd.close();
+                    } catch (IOException e) {
+                        // no-op
+                    }
+                }
             }
-
-            if(conn.getResponseCode() != 200) {
-                System.out.println(conn.getResponseCode());
-                log.error("Illegal response received from " + httpMethod + " request to " + urlToCall);
-                throw new IOException(conn.getResponseCode() + ": " + conn.getResponseMessage());
-            }
-
-            conn.disconnect();
-        } catch(Exception e) {
-            log.error("Error while sending a request for a HttpHook [" + hookName + "]", e);
         }
     }
 }
