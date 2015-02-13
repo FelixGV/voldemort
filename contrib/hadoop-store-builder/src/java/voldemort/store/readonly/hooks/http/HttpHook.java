@@ -62,21 +62,25 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
     }
 
     /**
+     * Override this function if you need a Content-type header specified.
+     *
+     * The default implementation (returning null) will cause no Content-type header
+     * at all to be used.
+     *
+     * @param buildAndPushStatus
+     * @return the content-type to use in the HTTP request, can be null
+     */
+    protected String getContentType(BuildAndPushStatus buildAndPushStatus) {
+        return null;
+    }
+
+    /**
      * Concrete classes must implement this to declare which {@link BuildAndPushStatus}
      * the hook should send an HTTP request for.
      *
      * @return a list of {@link BuildAndPushStatus} to act on
      */
     protected abstract List<BuildAndPushStatus> getStatusListToCallHookFor();
-
-    /**
-     * Concrete classes must implement this to decide what content-type to use
-     * in the HTTP request.
-     *
-     * @param buildAndPushStatus
-     * @return the content-type to use in the HTTP request
-     */
-    protected abstract String getContentType(BuildAndPushStatus buildAndPushStatus);
 
     /**
      * Concrete classes must implement this to provide a request body to include in the

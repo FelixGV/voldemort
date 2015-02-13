@@ -46,7 +46,8 @@ class HttpHookRunnable implements Runnable {
             conn.setRequestMethod(httpMethod.name());
             conn.setDoOutput(true);
             conn.setDoInput(true);
-            conn.setRequestProperty("Content-Type", contentType);
+            if (contentType != null)
+                conn.setRequestProperty("Content-Type", contentType);
 
             if (log.isDebugEnabled())
                 log.debug(hookName + " request body: " + requestBody);
