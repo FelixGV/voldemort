@@ -57,9 +57,10 @@ class HttpHookRunnable implements Runnable {
             int responseCode = conn.getResponseCode();
 
             if(responseCode != 200) {
-                log.error("Illegal response received from " + httpMethod + " request to " + urlToCall);
                 handleResponse(responseCode, conn.getErrorStream());
-                throw new IOException(responseCode + ": " + conn.getResponseMessage());
+                throw new IOException("HttpHook [" + hookName + "] received '" +
+                        responseCode + ": " + conn.getResponseMessage() +
+                        "' response from " + httpMethod + " request to " + urlToCall);
             } else {
                 handleResponse(responseCode, conn.getInputStream());
             }
