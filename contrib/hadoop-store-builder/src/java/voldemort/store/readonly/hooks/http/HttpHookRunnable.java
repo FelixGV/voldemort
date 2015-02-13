@@ -45,6 +45,9 @@ class HttpHookRunnable implements Runnable {
             conn.setDoInput(true);
             conn.setRequestProperty("Content-Type", contentType);
 
+            if (log.isDebugEnabled())
+                log.debug(hookName + " request body: " + requestBody);
+
             OutputStream out = conn.getOutputStream();
             out.write(requestBody.getBytes());
             out.close();
@@ -58,7 +61,7 @@ class HttpHookRunnable implements Runnable {
                     sb.append(line);
                 }
                 rd.close();
-                log.debug("Received response: " + sb);
+                log.debug(hookName + " received response: " + sb);
             }
 
             if(conn.getResponseCode() != 200) {
