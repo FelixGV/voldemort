@@ -36,15 +36,15 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
     }
 
     @Override
-    public void invoke(BuildAndPushStatus buildAndPushStatus, String s) {
+    public void invoke(BuildAndPushStatus buildAndPushStatus, String details) {
         if (statusesToCallHookFor.contains(buildAndPushStatus)) {
             httpFutureResults.add(this.executorService.submit(new HttpHookRunnable(
                     getName(),
                     log,
                     urlToCall,
-                    getHttpMethod(buildAndPushStatus),
-                    getContentType(buildAndPushStatus),
-                    getRequestBody(buildAndPushStatus))));
+                    getHttpMethod(buildAndPushStatus, details),
+                    getContentType(buildAndPushStatus, details),
+                    getRequestBody(buildAndPushStatus, details))));
         }
         if (terminationStatuses.contains(buildAndPushStatus)) {
             cleanUp();
@@ -57,7 +57,7 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
      * @param buildAndPushStatus
      * @return the method to use in the HTTP request
      */
-    protected HttpMethod getHttpMethod(BuildAndPushStatus buildAndPushStatus) {
+    protected HttpMethod getHttpMethod(BuildAndPushStatus buildAndPushStatus, String details) {
         return HttpMethod.POST;
     }
 
@@ -70,7 +70,7 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
      * @param buildAndPushStatus
      * @return the content-type to use in the HTTP request, can be null
      */
-    protected String getContentType(BuildAndPushStatus buildAndPushStatus) {
+    protected String getContentType(BuildAndPushStatus buildAndPushStatus, String details) {
         return null;
     }
 
@@ -89,7 +89,7 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
      * @param buildAndPushStatus
      * @return the request body to include in the HTTP request
      */
-    protected abstract String getRequestBody(BuildAndPushStatus buildAndPushStatus);
+    protected abstract String getRequestBody(BuildAndPushStatus buildAndPushStatus, String details);
 
     private void cleanUp() {
         for (Future result : httpFutureResults) {
