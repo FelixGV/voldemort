@@ -495,15 +495,32 @@ public class HadoopStoreBuilder {
 
                         for(FileStatus file: storeFiles) {
                             try {
-                                input = outputFs.open(file.getPath());
+                                int totalRetries = 3;
+                                int retriesLeft = totalRetries;
+                                while (retriesLeft > 0) {
+                                    try {
+                                        retriesLeft--;
+                                        input = outputFs.open(file.getPath());
+                                    } catch (Exception e) {
+                                        if (retriesLeft < 1) {
+                                            throw e;
+                                        }
+
+                                        // Exponential back-off: 5s, 25s, 45s.
+                                        int sleepTime = ((totalRetries / retriesLeft) ^ 2) * 5;
+                                        logger.error("Error getting checksum file from HDFS. Retries left: " +
+                                                retriesLeft + ". Back-off until next retry: " + sleepTime + " seconds.", e);
+
+                                        Thread.sleep(sleepTime * 1000);
+                                    }
+                                }
                                 byte fileCheckSum[] = new byte[CheckSum.checkSumLength(this.checkSumType)];
                                 input.read(fileCheckSum);
                                 logger.debug("Checksum for file " + file.toString() + " - "
                                              + new String(Hex.encodeHex(fileCheckSum)));
                                 checkSumGenerator.update(fileCheckSum);
                             } catch(Exception e) {
-                                logger.error("Error while reading checksum file " + e.getMessage(),
-                                             e);
+                                logger.error("Error getting checksum file from HDFS", e);
                             } finally {
                                 if(input != null)
                                     input.close();
