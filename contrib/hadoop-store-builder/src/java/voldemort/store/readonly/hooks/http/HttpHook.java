@@ -91,7 +91,7 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
      */
     protected abstract String getRequestBody(BuildAndPushStatus buildAndPushStatus, String details);
 
-    private void cleanUp() {
+    private synchronized void cleanUp() {
         for (Future result : httpFutureResults) {
             try {
                 result.get();
