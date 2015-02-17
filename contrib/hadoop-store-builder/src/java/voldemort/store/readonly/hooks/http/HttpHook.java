@@ -41,7 +41,7 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
             httpFutureResults.add(this.executorService.submit(new HttpHookRunnable(
                     getName(),
                     log,
-                    urlToCall,
+                    getUrlToCall(buildAndPushStatus, details),
                     getHttpMethod(buildAndPushStatus, details),
                     getContentType(buildAndPushStatus, details),
                     getRequestBody(buildAndPushStatus, details))));
@@ -72,6 +72,21 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
      */
     protected String getContentType(BuildAndPushStatus buildAndPushStatus, String details) {
         return null;
+    }
+
+    /**
+     * Override this function if you need a custom URL specified.
+     *
+     * The default implementation will return the parameter that was set via the URL_TO_CALL
+     * config property. If you choose to override, you can still get the value of URL_TO_CALL
+     * by invoking super.getUrlToCall (for example if you need to append some dynamic GET
+     * parameters at the end).
+     *
+     * @param buildAndPushStatus
+     * @return the content-type to use in the HTTP request, can be null
+     */
+    protected String getUrlToCall(BuildAndPushStatus buildAndPushStatus, String details) {
+        return urlToCall;
     }
 
     /**
