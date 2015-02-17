@@ -99,7 +99,8 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
 
     /**
      * Concrete classes must implement this to provide a request body to include in the
-     * HTTP request. Can be empty string, but cannot be null.
+     * HTTP request. Can return null, in which case, no request body will be included
+     * (for example, if the HTTP method is GET).
      *
      * @param buildAndPushStatus
      * @return the request body to include in the HTTP request

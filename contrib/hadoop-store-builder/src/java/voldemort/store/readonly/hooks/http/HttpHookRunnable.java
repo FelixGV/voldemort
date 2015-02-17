@@ -52,8 +52,10 @@ class HttpHookRunnable implements Runnable {
             if (log.isDebugEnabled())
                 log.debug(hookName + " request body: " + requestBody);
 
-            out = conn.getOutputStream();
-            out.write(requestBody.getBytes());
+            if (requestBody != null) {
+                out = conn.getOutputStream();
+                out.write(requestBody.getBytes());
+            }
 
             int responseCode = conn.getResponseCode();
 
