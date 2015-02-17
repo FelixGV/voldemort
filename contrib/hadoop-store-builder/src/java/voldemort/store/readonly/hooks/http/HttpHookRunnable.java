@@ -50,7 +50,7 @@ class HttpHookRunnable implements Runnable {
                 conn.setRequestProperty("Content-Type", contentType);
 
             if (log.isDebugEnabled())
-                log.debug(hookName + " request body: " + requestBody);
+                log.debug("HttpHook [" + hookName + "] will send " + httpMethod.name() + " request to " + urlToCall + " with body: " + requestBody);
 
             if (requestBody != null) {
                 out = conn.getOutputStream();
@@ -101,7 +101,7 @@ class HttpHookRunnable implements Runnable {
                 while((line = rd.readLine()) != null) {
                     sb.append(line);
                 }
-                log.debug(hookName + " received " + responseCode + " response: " + sb);
+                log.debug("HttpHook [" + hookName + "] received " + responseCode + " response: " + sb);
             } catch (IOException e) {
                 log.debug("Error while reading response for HttpHook [" + hookName + "]", e);
             } finally {
