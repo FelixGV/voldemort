@@ -496,21 +496,21 @@ public class HadoopStoreBuilder {
 
                         for(FileStatus file: storeFiles) {
                             try {
-                                int totalRetries = 3;
-                                int retriesLeft = totalRetries;
-                                while (retriesLeft > 0) {
+                                int totalAttempts = 4;
+                                int attemptsRemaining = totalAttempts;
+                                while (attemptsRemaining > 0) {
                                     try {
-                                        retriesLeft--;
+                                        attemptsRemaining--;
                                         input = outputFs.open(file.getPath());
                                     } catch (Exception e) {
-                                        if (retriesLeft < 1) {
+                                        if (attemptsRemaining < 1) {
                                             throw e;
                                         }
 
                                         // Exponential back-off: 5s, 25s, 45s.
-                                        int sleepTime = ((totalRetries / retriesLeft) ^ 2) * 5;
+                                        int sleepTime = ((totalAttempts - attemptsRemaining) ^ 2) * 5;
                                         logger.error("Error getting checksum file from HDFS. Retries left: " +
-                                                retriesLeft + ". Back-off until next retry: " + sleepTime + " seconds.", e);
+                                                attemptsRemaining + ". Back-off until next retry: " + sleepTime + " seconds.", e);
 
                                         Thread.sleep(sleepTime * 1000);
                                     }
