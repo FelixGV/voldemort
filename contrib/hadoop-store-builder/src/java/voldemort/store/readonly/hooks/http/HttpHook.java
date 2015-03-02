@@ -3,6 +3,7 @@ package voldemort.store.readonly.hooks.http;
 import com.google.common.collect.Lists;
 import voldemort.store.readonly.hooks.AbstractBuildAndPushHook;
 import voldemort.store.readonly.hooks.BuildAndPushStatus;
+import voldemort.utils.Props;
 
 import java.util.List;
 import java.util.Properties;
@@ -29,9 +30,9 @@ public abstract class HttpHook extends AbstractBuildAndPushHook {
     private final List<BuildAndPushStatus> statusesToCallHookFor = getStatusListToCallHookFor();
 
     @Override
-    public void init(Properties properties) throws Exception {
-        this.urlToCall = getStringPropertyOrFail(properties, URL_TO_CALL);
-        int numThreads = getIntProperty(properties, EXECUTOR_THREADS, "1");
+    public void init(Props properties) throws Exception {
+        this.urlToCall = properties.getString(URL_TO_CALL);
+        int numThreads = properties.getInt(EXECUTOR_THREADS, 1);
         this.executorService = Executors.newFixedThreadPool(numThreads);
     }
 
