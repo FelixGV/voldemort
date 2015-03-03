@@ -281,6 +281,37 @@ public class Props implements Map<String, String> {
     }
 
     /**
+     * Returns a list of strings with the comma as the separator of the value.
+     * If the value is null, it'll return the defaultValue.
+     *
+     * @param key
+     * @return
+     */
+    public List<String> getStringList(String key, List<String> defaultValue) {
+        if (containsKey(key)) {
+            return getStringList(key);
+        } else {
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Returns a list of strings with the sep as the separator of the value. If
+     * the value is null, it'll return the defaultValue.
+     *
+     * @param key
+     * @return
+     */
+    public List<String> getStringList(String key, List<String> defaultValue,
+                                      String sep) {
+        if (containsKey(key)) {
+            return getStringList(key, sep);
+        } else {
+            return defaultValue;
+        }
+    }
+
+    /**
      * Attempts to return the Class that corresponds to the Props value. If the
      * class doesn't exit, an IllegalArgumentException will be thrown.
      *
