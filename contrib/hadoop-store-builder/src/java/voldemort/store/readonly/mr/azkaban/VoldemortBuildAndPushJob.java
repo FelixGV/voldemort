@@ -346,7 +346,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             } catch(VoldemortException e) {
                 log.error("Exception during cluster equality check", e);
                 fail("Exception during cluster equality check: " + e.toString());
-                System.exit(-1); // FIXME: seems messy to do a System.exit here... Can we just return instead? Leaving as is for now...
+                return;
             }
             // Create a hashmap to capture exception per url
             HashMap<String, Exception> exceptions = Maps.newHashMap();
@@ -417,7 +417,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         + " => " + Joiner.on(",").join(exceptions.values());
                 log.error(errorMessage);
                 fail(errorMessage);
-                System.exit(-1); // FIXME: seems messy to do a System.exit here... Can we just return instead? Leaving as is for now...
+                return;
             }
         } catch (Exception e) {
             log.error("An exception occurred during Build and Push !!", e);
@@ -523,8 +523,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 addStore(description, owners, url, newStoreDef);
             }
             catch(RuntimeException e) {
-                log.error("Getting store definition from: " + url + " (node id " + this.nodeId + ")", e); 
-                System.exit(-1);
+                log.error("Getting store definition from: " + url + " (node id " + this.nodeId + ")", e);
+                fail("Failed to add store");
+                throw new VoldemortException("Failed to add store", e);
             }
         }
         AdminClient adminClient = new AdminClient(url, new AdminClientConfig(), new ClientConfig());
