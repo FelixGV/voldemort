@@ -403,7 +403,7 @@ public class HadoopUtils {
             ByteArrayInputStream input = new ByteArrayInputStream(propsString.getBytes("UTF-8"));
             Properties properties = new Properties();
             properties.load(input);
-            return new Props(null, properties);
+            return new Props(properties);
         } catch(IOException e) {
             throw new RuntimeException("This is not possible!", e);
         }
