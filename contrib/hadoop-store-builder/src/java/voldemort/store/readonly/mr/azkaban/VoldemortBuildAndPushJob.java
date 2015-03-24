@@ -1,12 +1,12 @@
 /*
  * Copyright 2008-2013 LinkedIn, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -34,6 +34,7 @@ import org.apache.avro.Schema;
 import org.apache.commons.lang.Validate;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
@@ -55,14 +56,13 @@ import voldemort.store.readonly.mr.utils.AvroUtils;
 import voldemort.store.readonly.mr.utils.HadoopUtils;
 import voldemort.store.readonly.mr.utils.JsonSchema;
 import voldemort.store.readonly.mr.utils.VoldemortUtils;
+import voldemort.utils.Props;
 import voldemort.utils.ReflectUtils;
 import voldemort.utils.Utils;
-import voldemort.utils.Props;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-
 public class VoldemortBuildAndPushJob extends AbstractJob {
 
     private final Logger log;
@@ -140,6 +140,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String PUSH_ROLLBACK = "push.rollback";
     public final static String PUSH_FORCE_SCHEMA_KEY = "push.force.schema.key";
     public final static String PUSH_FORCE_SCHEMA_VALUE = "push.force.schema.value";
+    public final static String ALLOW_EMPTY_STORE_PUSHES = "allow.empty.store.pushes";
     // others.optional
     public final static String KEY_SELECTION = "key.selection";
     public final static String VALUE_SELECTION = "value.selection";
@@ -253,10 +254,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     }
 
     /**
-     * 
+     *
      * Compare two clusters to see if they have the equal number of partitions,
      * equal number of nodes and each node hosts the same partition ids.
-     * 
+     *
      * @param lhs Left hand side Cluster object
      * @param rhs Right hand side cluster object
      * @return True if the clusters are congruent (equal number of partitions,
@@ -278,10 +279,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
     /**
      * Check if all cluster objects in the list are congruent.
-     * 
+     *
      * @param clusterUrls of cluster objects
      * @return
-     * 
+     *
      */
     private void allClustersEqual(final List<String> clusterUrls) {
         Validate.notEmpty(clusterUrls, "Clusterurls cannot be null");
@@ -302,7 +303,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                              + "is not the same as " + clusterRhs.getName());
         }
     }
-    
+
     private void checkForPreconditions(boolean build, boolean push) {
         if (!build && !push) {
             throw new RuntimeException(" Both build and push cannot be false ");
@@ -360,6 +361,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     // Verify the schema if the store exists or else add the new store
                     verifyOrAddStore(url);
                 }
+
+                Counters mrStats = new Counters();
+
                 if (build) {
                     // If we are only building and not pushing then we want the build to
                     // happen on all three clusters || we are pushing and we want to build
@@ -367,13 +371,21 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     if (!push || buildOutputDir == null) {
                         try {
                             invokeHooks(BuildAndPushStatus.BUILDING);
-                            buildOutputDir = runBuildStore(props, url);
+                            buildOutputDir = runBuildStore(props, url, mrStats);
                         } catch(Exception e) {
                             log.error("Exception during build for url " + url, e);
                             exceptions.put(url, e);
                         }
                     }
                 }
+
+                Counters.Counter counter = mrStats.findCounter("org.apache.hadoop.mapred.Task$Counter", "REDUCE_OUTPUT_RECORDS");
+                log.info(counter.getDisplayName() + ": " + counter.getCounter());
+                if(counter.getCounter() == 0L && !props.getBoolean(ALLOW_EMPTY_STORE_PUSHES, false)) {
+                    log.error("No records found in data set. Aborting");
+                    System.exit(-1);
+                }
+
                 if (push) {
                     if (log.isDebugEnabled()) {
                         log.debug("Informing about push start ...");
@@ -450,11 +462,12 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     }
 
     /**
-     * Checks whether the store is already present in the cluster and verify its schema, otherwise add it
-     * 
+     * Checks whether the store is already present in the cluster and verify its
+     * schema, otherwise add it
+     *
      * @param url to check
      * @return
-     * 
+     *
      */
     private void verifyOrAddStore(String url) throws Exception {
         // create new json store def with schema from the metadata in the input path
@@ -529,8 +542,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             }
         }
         AdminClient adminClient = new AdminClient(url, new AdminClientConfig(), new ClientConfig());
-        // don't use newStoreDef because we want to ALWAYS use the JSON definition since the store 
-        // builder assumes that you are using JsonTypeSerializer. This allows you to tweak your 
+        // don't use newStoreDef because we want to ALWAYS use the JSON
+        // definition since the store
+        // builder assumes that you are using JsonTypeSerializer. This allows
+        // you to tweak your
         // value/key store xml  as you see fit, but still uses the json sequence file meta data
         // to  build the store.
         storeDefs = ImmutableList.of(VoldemortUtils.getStoreDef(VoldemortUtils.getStoreDefXml(storeName,
@@ -546,10 +561,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         cluster = adminClient.getAdminClientCluster();
         adminClient.close();
     }
-    
+
     /**
-     * Check if store exists and then verify the schema. Returns false if store doesn't exist
-     * 
+     * Check if store exists and then verify the schema. Returns false if store
+     * doesn't exist
+     *
      * @param url to check
      * @param newStoreDefXml
      * @param hasCompression
@@ -557,7 +573,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
      * @param requiredReads
      * @param requiredWrites
      * @return boolean value true means store exists, false otherwise
-     * 
+     *
      */
 
     private boolean findAndVerify(String url,
@@ -579,11 +595,16 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 if(remoteStoreDef.getName().equals(storeName)) {
                     // if the store already exists, but doesn't match what we want to push, we need to worry
                     if(!remoteStoreDef.equals(newStoreDef)) {
-                        // it is possible that the stores actually DO match, but the json in the key/value 
-                        // serializers is out of order (eg {'a': 'int32', 'b': 'int32'}  could have a/b reversed. 
-                        // This is just a reflection of the fact that voldemort json type defs use hashmaps that 
-                        // are unordered, and pig uses bags that are unordered  as well. it's therefore unpredictable 
-                        // what order the keys will come out of pig. let's check to see if the key/value 
+                        // it is possible that the stores actually DO match, but
+                        // the json in the key/value
+                        // serializers is out of order (eg {'a': 'int32', 'b':
+                        // 'int32'} could have a/b reversed.
+                        // This is just a reflection of the fact that voldemort
+                        // json type defs use hashmaps that
+                        // are unordered, and pig uses bags that are unordered
+                        // as well. it's therefore unpredictable
+                        // what order the keys will come out of pig. let's check
+                        // to see if the key/value
                         // serializers are REALLY equal.
                         SerializerDefinition localKeySerializerDef = newStoreDef.getKeySerializer();
                         SerializerDefinition localValueSerializerDef = newStoreDef.getValueSerializer();
@@ -625,13 +646,15 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
                                 newStoreDef = VoldemortUtils.getStoreDef(newStoreDefXml);
                                 if(!remoteStoreDef.equals(newStoreDef)) {
-                                    // if we still get a fail, then we know that the store defs don't match for reasons 
+                                    // if we still get a fail, then we know that
+                                    // the store defs don't match for reasons
                                     // OTHER than the key/value serializer
                                     throw new RuntimeException("Your store schema is identical, but the store definition does not match. Have: "
                                                                + newStoreDef + "\nBut expected: " + remoteStoreDef);
                                 }
                             } else {
-                                // if the key/value serializers are not equal (even in java, not just json strings), 
+                                // if the key/value serializers are not equal
+                                // (even in java, not just json strings),
                                 // then fail
                                 throw new RuntimeException("Your store definition does not match the store definition that is already in the cluster. Tried to resolve identical schemas between local and remote, but failed. Have: "
                                                            + newStoreDef + "\nBut expected: " + remoteStoreDef);
@@ -650,7 +673,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             adminClient.close();
         }
     }
-    
+
     private void addStore(String description, String owners, String url, StoreDefinition newStoreDef) {
         if (description.length() == 0) {
             throw new RuntimeException("Description field missing in store definition. "
@@ -677,7 +700,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         }
     }
 
-    public String runBuildStore(Props props, String url) throws Exception {
+    public String runBuildStore(Props props, String url, Counters mrStats) throws Exception {
         int replicationFactor = props.getInt(BUILD_REPLICATION_FACTOR, 2);
         int chunkSize = props.getInt(BUILD_CHUNK_SIZE, 1024 * 1024 * 1024);
         Path tempDir = new Path(props.getString(BUILD_TEMP_DIR, "/tmp/vold-build-and-push-"
@@ -716,11 +739,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                                                        saveKeys,
                                                                        reducerPerBucket,
                                                                        numChunks,
-                                                 keyFieldName,
-                                                 valueFieldName,
+                                                                       keyFieldName,
+                                                                       valueFieldName,
                                                                        recSchema,
                                                                        keySchema,
-                                                                       valSchema), true).run();
+                                                                       valSchema), true, mrStats).run();
             return outputDir.toString();
         }
         new VoldemortStoreBuilderJob(this.getId() + "-build-store",
@@ -740,7 +763,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                                                    checkSumType,
                                                                    saveKeys,
                                                                    reducerPerBucket,
-                                                                   numChunks)).run();
+                                                                   numChunks), mrStats).run();
         return outputDir.toString();
     }
 
@@ -795,7 +818,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         String valueSchema = schema.getField(valueFieldName).schema().toString();
         return valueSchema;
     }
-    
+
     private static class KeyValueSchema {
         String keySchema;
         String valSchema;
@@ -804,7 +827,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             valSchema = val;
         }
     }
-    
+
     // Verify if the new avro schema being pushed is the same one as the last version present on the server
     // supports schema evolution
 
@@ -925,10 +948,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             adminClient.close();
         }
     }
- 
+
     /**
-     * Check if store exists and then verify the schema. Returns false if store doesn't exist
-     * 
+     * Check if store exists and then verify the schema. Returns false if store
+     * doesn't exist
+     *
      * @param url to check
      * @param newStoreDefXml
      * @param hasCompression
@@ -938,7 +962,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
      * @param serializerName
      * @param schemaObj key/value schema obj
      * @return boolean value true means store exists, false otherwise
-     * 
+     *
      */
     private boolean findAndVerifyAvro(String url,
                                       String newStoreDefXml,
@@ -1055,7 +1079,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                 newStoreDef = VoldemortUtils.getStoreDef(newStoreDefXml);
 
                                 if(!remoteStoreDef.equals(newStoreDef)) {
-                                    // if we still get a fail, then we know that the store defs don't match for reasons 
+                                    // if we still get a fail, then we know that
+                                    // the store defs don't match for reasons
                                     // OTHER than the key/value serializer
                                     throw new RuntimeException("Your store schema is identical, but the store definition does not match. Have: "
                                                                + newStoreDef
@@ -1064,7 +1089,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                 }
 
                             } else {
-                                // if the key/value serializers are not equal (even in java, not just json strings), 
+                                // if the key/value serializers are not equal
+                                // (even in java, not just json strings),
                                 // then fail
                                 throw new RuntimeException("Your store definition does not match the store definition that is already in the cluster. Tried to resolve identical schemas between local and remote, but failed. Have: "
                                                            + newStoreDef

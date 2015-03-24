@@ -1,12 +1,12 @@
 /*
  * Copyright 2008-2009 LinkedIn, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -72,8 +72,8 @@ import voldemort.versioning.Versioned;
  * Unit test to check Read-Only Batch Indexer <strong>in Local mode numReduce
  * will be only one hence we will see only one node files irrespective of
  * cluster details.</strong>
- * 
- * 
+ *
+ *
  */
 @RunWith(Parameterized.class)
 @SuppressWarnings("deprecation")
@@ -114,7 +114,7 @@ public class HadoopStoreBuilderTest {
     /**
      * Issue 258 : 'node--1' produced during store building if some reducer does
      * not get any data.
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -160,7 +160,7 @@ public class HadoopStoreBuilderTest {
                                                             new Path(inputFile.getAbsolutePath()),
                                                             CheckSumType.MD5,
                                                             saveKeys,
-                                                            false);
+                                                            false, null);
         builder.build();
 
         // Should not produce node--1 directory + have one folder for every node
@@ -224,7 +224,7 @@ public class HadoopStoreBuilderTest {
                                                             new Path(inputFile.getAbsolutePath()),
                                                             CheckSumType.MD5,
                                                             saveKeys,
-                                                            false);
+                                                            false, null);
         builder.build();
 
         builder = new HadoopStoreBuilder(new Configuration(),
@@ -238,7 +238,7 @@ public class HadoopStoreBuilderTest {
                                          new Path(inputFile.getAbsolutePath()),
                                          CheckSumType.MD5,
                                          saveKeys,
-                                         false);
+                                         false, null);
         builder.build();
 
         // Check if checkSum is generated in outputDir

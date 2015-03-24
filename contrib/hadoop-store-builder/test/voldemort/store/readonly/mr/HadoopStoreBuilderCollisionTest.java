@@ -16,6 +16,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.OutputCollector;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TextInputFormat;
@@ -54,7 +55,7 @@ import com.google.common.collect.Maps;
 /**
  * Test for {@link ReadOnlyStorageFormat}-READONLY_V2 where-in we try to
  * generate collisions and check if edge cases are caught correctly
- * 
+ *
  */
 @SuppressWarnings("deprecation")
 public class HadoopStoreBuilderCollisionTest {
@@ -232,7 +233,8 @@ public class HadoopStoreBuilderCollisionTest {
                                                             new Path(inputFile.getAbsolutePath()),
                                                             CheckSumType.MD5,
                                                             true,
-                                                            false);
+                                                            false,
+                                                            new Counters());
         builder.build();
 
         File nodeFile = new File(outputDir, "node-0");

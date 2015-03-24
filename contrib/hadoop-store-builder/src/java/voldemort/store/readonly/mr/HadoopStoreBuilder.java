@@ -1,12 +1,12 @@
 /*
  * Copyright 2008-2009 LinkedIn, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -62,7 +62,7 @@ import voldemort.xml.StoreDefinitionsMapper;
 
 /**
  * Builds a read-only voldemort store as a hadoop job from the given input data.
- * 
+ *
  */
 @SuppressWarnings("deprecation")
 public class HadoopStoreBuilder {
@@ -90,11 +90,12 @@ public class HadoopStoreBuilder {
     private int numChunks = -1;
 
     private boolean isAvro;
+    private Counters mrStats;
 
     /**
      * Kept for backwards compatibility. We do not use replicationFactor any
      * more since it is derived from the store definition
-     * 
+     *
      * @param conf A base configuration to start with
      * @param mapperClass The class to use as the mapper
      * @param inputFormatClass The input format to use for reading values
@@ -118,7 +119,8 @@ public class HadoopStoreBuilder {
                               long chunkSizeBytes,
                               Path tempDir,
                               Path outputDir,
-                              Path inputPath) {
+                              Path inputPath,
+                              Counters mrStats) {
         this(conf,
              mapperClass,
              inputFormatClass,
@@ -127,12 +129,12 @@ public class HadoopStoreBuilder {
              chunkSizeBytes,
              tempDir,
              outputDir,
-             inputPath);
+             inputPath,
+             mrStats);
     }
-
     /**
      * Create the store builder
-     * 
+     *
      * @param conf A base configuration to start with
      * @param mapperClass The class to use as the mapper
      * @param inputFormatClass The input format to use for reading values
@@ -153,7 +155,8 @@ public class HadoopStoreBuilder {
                               long chunkSizeBytes,
                               Path tempDir,
                               Path outputDir,
-                              Path inputPath) {
+                              Path inputPath,
+                              Counters mrStats) {
         super();
         this.config = conf;
         this.mapperClass = Utils.notNull(mapperClass);
@@ -165,6 +168,7 @@ public class HadoopStoreBuilder {
         this.tempDir = tempDir;
         this.outputDir = Utils.notNull(outputDir);
         isAvro = false;
+        this.mrStats = mrStats;
         if(chunkSizeBytes > MAX_CHUNK_SIZE || chunkSizeBytes < MIN_CHUNK_SIZE)
             throw new VoldemortException("Invalid chunk size, chunk size must be in the range "
                                          + MIN_CHUNK_SIZE + "..." + MAX_CHUNK_SIZE);
@@ -172,7 +176,7 @@ public class HadoopStoreBuilder {
 
     /**
      * Create the store builder
-     * 
+     *
      * @param conf A base configuration to start with
      * @param mapperClass The class to use as the mapper
      * @param inputFormatClass The input format to use for reading values
@@ -195,7 +199,8 @@ public class HadoopStoreBuilder {
                               Path tempDir,
                               Path outputDir,
                               Path inputPath,
-                              CheckSumType checkSumType) {
+                              CheckSumType checkSumType,
+                              Counters mrStats) {
         this(conf,
              mapperClass,
              inputFormatClass,
@@ -204,14 +209,15 @@ public class HadoopStoreBuilder {
              chunkSizeBytes,
              tempDir,
              outputDir,
-             inputPath);
+             inputPath,
+             mrStats);
         this.checkSumType = checkSumType;
 
     }
 
     /**
      * Create the store builder
-     * 
+     *
      * @param conf A base configuration to start with
      * @param mapperClass The class to use as the mapper
      * @param inputFormatClass The input format to use for reading values
@@ -240,7 +246,8 @@ public class HadoopStoreBuilder {
                               Path inputPath,
                               CheckSumType checkSumType,
                               boolean saveKeys,
-                              boolean reducerPerBucket) {
+                              boolean reducerPerBucket,
+                              Counters mrStats) {
         this(conf,
              mapperClass,
              inputFormatClass,
@@ -250,14 +257,15 @@ public class HadoopStoreBuilder {
              tempDir,
              outputDir,
              inputPath,
-             checkSumType);
+             checkSumType,
+             mrStats);
         this.saveKeys = saveKeys;
         this.reducerPerBucket = reducerPerBucket;
     }
 
     /**
      * Create the store builder
-     * 
+     *
      * @param conf A base configuration to start with
      * @param mapperClass The class to use as the mapper
      * @param inputFormatClass The input format to use for reading values
@@ -287,7 +295,8 @@ public class HadoopStoreBuilder {
                               CheckSumType checkSumType,
                               boolean saveKeys,
                               boolean reducerPerBucket,
-                              int numChunks) {
+                              int numChunks,
+                              Counters mrStats) {
         super();
         this.config = conf;
         this.mapperClass = Utils.notNull(mapperClass);
@@ -303,6 +312,7 @@ public class HadoopStoreBuilder {
         this.reducerPerBucket = reducerPerBucket;
         this.numChunks = numChunks;
         isAvro = false;
+        this.mrStats = mrStats;
         if(numChunks <= 0)
             throw new VoldemortException("Number of chunks should be greater than zero");
     }
@@ -431,13 +441,13 @@ public class HadoopStoreBuilder {
             RunningJob job = JobClient.runJob(conf);
 
             // Once the job has completed log the counter
-            Counters counters = job.getCounters();
+            mrStats = job.getCounters();
 
             if(saveKeys) {
                 logger.info("Number of collisions in the job - "
-                            + counters.getCounter(KeyValueWriter.CollisionCounter.NUM_COLLISIONS));
+                            + mrStats.getCounter(KeyValueWriter.CollisionCounter.NUM_COLLISIONS));
                 logger.info("Maximum number of collisions for one entry - "
-                            + counters.getCounter(KeyValueWriter.CollisionCounter.MAX_COLLISIONS));
+                            + mrStats.getCounter(KeyValueWriter.CollisionCounter.MAX_COLLISIONS));
             }
 
             // Do a CheckSumOfCheckSum - Similar to HDFS
@@ -568,7 +578,7 @@ public class HadoopStoreBuilder {
     /**
      * A comparator that sorts index files last. This is required to maintain
      * the order while calculating checksum
-     * 
+     *
      */
     static class IndexFileLastComparator implements Comparator<FileStatus> {
 

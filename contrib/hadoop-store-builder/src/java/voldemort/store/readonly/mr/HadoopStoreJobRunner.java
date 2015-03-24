@@ -1,12 +1,12 @@
 /*
  * Copyright 2008-2009 LinkedIn, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -40,6 +40,7 @@ import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.jdom.JDOMException;
+import org.apache.hadoop.mapred.Counters;
 
 import voldemort.cluster.Cluster;
 import voldemort.server.VoldemortConfig;
@@ -56,8 +57,8 @@ import com.google.common.collect.ImmutableCollection;
 /**
  * A runner class to facitilate the launching of HadoopStoreBuilder from the
  * command-line.
- * 
- * 
+ *
+ *
  */
 @SuppressWarnings("deprecation")
 public class HadoopStoreJobRunner extends Configured implements Tool {
@@ -185,6 +186,8 @@ public class HadoopStoreJobRunner extends Configured implements Tool {
 
         addDepJars(conf, deps, addJars);
 
+        Counters mrStats = new Counters();
+
         HadoopStoreBuilder builder = new HadoopStoreBuilder(conf,
                                                             mapperClass,
                                                             inputFormatClass,
@@ -196,7 +199,8 @@ public class HadoopStoreJobRunner extends Configured implements Tool {
                                                             inputPath,
                                                             checkSumType,
                                                             saveKeys,
-                                                            reducerPerBucket);
+                                                            reducerPerBucket,
+                                                            mrStats);
 
         builder.build();
         return 0;

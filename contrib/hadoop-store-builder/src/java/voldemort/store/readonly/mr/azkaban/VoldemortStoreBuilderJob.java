@@ -1,12 +1,12 @@
 /*
  * Copyright 2008-2009 LinkedIn, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -26,6 +26,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.Counters;
 
 import voldemort.cluster.Cluster;
 import voldemort.store.StoreDefinition;
@@ -35,49 +36,58 @@ import voldemort.store.readonly.mr.AvroStoreBuilderMapper;
 import voldemort.store.readonly.mr.HadoopStoreBuilder;
 import voldemort.store.readonly.mr.VoldemortStoreBuilderMapper;
 import voldemort.store.readonly.mr.serialization.JsonSequenceFileInputFormat;
+import voldemort.utils.Props;
 import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
-import voldemort.utils.Props;
 
 /**
  * Build a voldemort store from input data.
- * 
+ *
  * @author jkreps
- * 
+ *
  */
 public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
 
     private VoldemortStoreBuilderConf conf;
     private boolean isAvro;
+    private Counters mrStats;
 
-    public VoldemortStoreBuilderJob(String name, Props props) throws Exception {
+    public VoldemortStoreBuilderJob(String name, Props props, Counters mrStats) throws Exception {
         super(name, props);
         this.conf = new VoldemortStoreBuilderConf(createJobConf(VoldemortStoreBuilderMapper.class),
                                                   props);
         this.isAvro = false;
-    }
-
-    public VoldemortStoreBuilderJob(String name, Props props, VoldemortStoreBuilderConf conf)
-                                                                                             throws FileNotFoundException {
-        super(name, props);
-        this.conf = conf;
-        this.isAvro = false;
-    }
-
-    public VoldemortStoreBuilderJob(String name, Props props, boolean isAvro) throws Exception {
-        super(name, props);
-        this.conf = new VoldemortStoreBuilderConf(createJobConf(VoldemortStoreBuilderMapper.class),
-                                                  props);
-        this.isAvro = isAvro;
+        this.mrStats = mrStats;
     }
 
     public VoldemortStoreBuilderJob(String name,
                                     Props props,
                                     VoldemortStoreBuilderConf conf,
-                                    boolean isAvro) throws FileNotFoundException {
+                                    Counters mrStats) throws FileNotFoundException {
+        super(name, props);
+        this.conf = conf;
+        this.isAvro = false;
+        this.mrStats = mrStats;
+    }
+
+    public VoldemortStoreBuilderJob(String name, Props props, boolean isAvro, Counters mrStats)
+                                                                                               throws Exception {
+        super(name, props);
+        this.conf = new VoldemortStoreBuilderConf(createJobConf(VoldemortStoreBuilderMapper.class),
+                                                  props);
+        this.isAvro = isAvro;
+        this.mrStats = mrStats;
+    }
+
+    public VoldemortStoreBuilderJob(String name,
+                                    Props props,
+                                    VoldemortStoreBuilderConf conf,
+                                    boolean isAvro,
+                                    Counters mrStats) throws FileNotFoundException {
         super(name, props);
         this.conf = conf;
         this.isAvro = isAvro;
+        this.mrStats = mrStats;
     }
 
     public static final class VoldemortStoreBuilderConf {
@@ -403,7 +413,6 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
 
             if(conf.getNumChunks() == -1) {
                 builder = new HadoopStoreBuilder(configuration,
-
                                                  AvroStoreBuilderMapper.class,
                                                  (Class<? extends InputFormat>) AvroInputFormat.class,
                                                  cluster,
@@ -414,7 +423,8 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
                                                  inputPath,
                                                  checkSumType,
                                                  saveKeys,
-                                                 reducerPerBucket);
+                                                 reducerPerBucket,
+                                                 mrStats);
             } else {
                 builder = new HadoopStoreBuilder(configuration,
                                                  AvroStoreBuilderMapper.class,
@@ -427,7 +437,8 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
                                                  checkSumType,
                                                  saveKeys,
                                                  reducerPerBucket,
-                                                 conf.getNumChunks());
+                                                 conf.getNumChunks(),
+                                                 mrStats);
             }
 
             builder.buildAvro();
@@ -446,7 +457,8 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
                                              inputPath,
                                              checkSumType,
                                              saveKeys,
-                                             reducerPerBucket);
+                                             reducerPerBucket,
+                                             mrStats);
         } else {
             builder = new HadoopStoreBuilder(configuration,
                                              VoldemortStoreBuilderMapper.class,
@@ -459,7 +471,8 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
                                              checkSumType,
                                              saveKeys,
                                              reducerPerBucket,
-                                             conf.getNumChunks());
+                                             conf.getNumChunks(),
+                                             mrStats);
         }
 
         builder.build();

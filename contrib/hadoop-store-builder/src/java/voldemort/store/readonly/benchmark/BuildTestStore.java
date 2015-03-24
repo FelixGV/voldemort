@@ -1,12 +1,12 @@
 /*
  * Copyright 2008-2009 LinkedIn, Inc
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
  * the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
  * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
@@ -23,6 +23,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapred.SequenceFileInputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
@@ -38,8 +39,8 @@ import voldemort.xml.StoreDefinitionsMapper;
 
 /**
  * Build a test store from the generated data
- * 
- * 
+ *
+ *
  */
 @SuppressWarnings("deprecation")
 public class BuildTestStore extends Configured implements Tool {
@@ -76,7 +77,7 @@ public class BuildTestStore extends Configured implements Tool {
                                                             (long) (1.5 * 1024 * 1024 * 1024),
                                                             new Path(tempDir),
                                                             new Path(outputDir),
-                                                            new Path(inputDir));
+                                                            new Path(inputDir), new Counters());
         builder.build();
         return 0;
     }
