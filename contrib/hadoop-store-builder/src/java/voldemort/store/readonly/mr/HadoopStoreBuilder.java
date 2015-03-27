@@ -45,6 +45,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
 import org.apache.hadoop.mapred.RunningJob;
 import org.apache.hadoop.mapred.SequenceFileOutputFormat;
+import org.apache.hadoop.mapred.Task;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
@@ -284,7 +285,7 @@ public class HadoopStoreBuilder {
             // Once the job has completed log the counter
             Counters counters = job.getCounters();
 
-            long numberOfRecords = counters.findCounter("org.apache.hadoop.mapred.Task$Counter","REDUCE_I‌​NPUT_GROUPS").getValue();
+            long numberOfRecords = counters.getCounter(Task.Counter.REDUCE_INPUT_GROUPS);
 
             if (numberOfRecords < minNumberOfRecords) {
                 throw new VoldemortException("The number of records in the data set (" + numberOfRecords +

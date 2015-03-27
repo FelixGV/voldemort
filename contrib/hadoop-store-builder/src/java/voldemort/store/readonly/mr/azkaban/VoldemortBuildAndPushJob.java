@@ -410,11 +410,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 invokeHooks(BuildAndPushStatus.FINISHED);
                 cleanUp();
             } else {
-                String errorMessage = "Got exceptions while pushing to " + Joiner.on(",").join(exceptions.keySet())
-                        + " => " + Joiner.on(",").join(exceptions.values());
-                log.error(errorMessage);
-                fail(errorMessage);
-                return;
+                log.error("Got exceptions during Build and Push:");
+                for (Map.Entry<String, Exception> entry : exceptions.entrySet()) {
+                    log.error("Exception for cluster: " + entry.getKey(), entry.getValue());
+                }
+                throw new VoldemortException("Got exceptions during Build and Push");
             }
         } catch (Exception e) {
             log.error("An exception occurred during Build and Push !!", e);
@@ -678,7 +678,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         int replicationFactor = props.getInt(BUILD_REPLICATION_FACTOR, 2);
         int chunkSize = props.getInt(BUILD_CHUNK_SIZE, 1024 * 1024 * 1024);
         Path tempDir = new Path(props.getString(BUILD_TEMP_DIR, "/tmp/vold-build-and-push-"
-                                                                  + new Random().nextLong()));
+                + new Random().nextLong()));
         URI uri = new URI(url);
         Path outputDir = new Path(props.getString(BUILD_OUTPUT_DIR), uri.getHost());
         Path inputPath = getInputPath();
