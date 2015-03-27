@@ -362,7 +362,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     verifyOrAddStore(url);
                 }
 
-                Counters mrStats = new Counters();
+                Counters mrStats = null;
 
                 if (build) {
                     // If we are only building and not pushing then we want the build to
