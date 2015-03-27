@@ -92,172 +92,8 @@ public class HadoopStoreBuilder {
     private boolean isAvro;
 
     /**
-     * Kept for backwards compatibility. We do not use replicationFactor any
-     * more since it is derived from the store definition
-     * 
-     * @param conf A base configuration to start with
-     * @param mapperClass The class to use as the mapper
-     * @param inputFormatClass The input format to use for reading values
-     * @param cluster The voldemort cluster for which the stores are being built
-     * @param storeDef The store definition of the store
-     * @param replicationFactor NOT USED
-     * @param chunkSizeBytes The size of the chunks used by the read-only store
-     * @param tempDir The temporary directory to use in hadoop for intermediate
-     *        reducer output
-     * @param outputDir The directory in which to place the built stores
-     * @param inputPath The path from which to read input data
-     */
-    @SuppressWarnings("unchecked")
-    @Deprecated
-    public HadoopStoreBuilder(Configuration conf,
-                              Class mapperClass,
-                              Class<? extends InputFormat> inputFormatClass,
-                              Cluster cluster,
-                              StoreDefinition storeDef,
-                              int replicationFactor,
-                              long chunkSizeBytes,
-                              Path tempDir,
-                              Path outputDir,
-                              Path inputPath) {
-        this(conf,
-             mapperClass,
-             inputFormatClass,
-             cluster,
-             storeDef,
-             chunkSizeBytes,
-             tempDir,
-             outputDir,
-             inputPath);
-    }
-
-    /**
      * Create the store builder
-     * 
-     * @param conf A base configuration to start with
-     * @param mapperClass The class to use as the mapper
-     * @param inputFormatClass The input format to use for reading values
-     * @param cluster The voldemort cluster for which the stores are being built
-     * @param storeDef The store definition of the store
-     * @param chunkSizeBytes The size of the chunks used by the read-only store
-     * @param tempDir The temporary directory to use in hadoop for intermediate
-     *        reducer output
-     * @param outputDir The directory in which to place the built stores
-     * @param inputPath The path from which to read input data
-     */
-    @SuppressWarnings("unchecked")
-    public HadoopStoreBuilder(Configuration conf,
-                              Class mapperClass,
-                              Class<? extends InputFormat> inputFormatClass,
-                              Cluster cluster,
-                              StoreDefinition storeDef,
-                              long chunkSizeBytes,
-                              Path tempDir,
-                              Path outputDir,
-                              Path inputPath) {
-        super();
-        this.config = conf;
-        this.mapperClass = Utils.notNull(mapperClass);
-        this.inputFormatClass = Utils.notNull(inputFormatClass);
-        this.inputPath = inputPath;
-        this.cluster = Utils.notNull(cluster);
-        this.storeDef = Utils.notNull(storeDef);
-        this.chunkSizeBytes = chunkSizeBytes;
-        this.tempDir = tempDir;
-        this.outputDir = Utils.notNull(outputDir);
-        isAvro = false;
-        if(chunkSizeBytes > MAX_CHUNK_SIZE || chunkSizeBytes < MIN_CHUNK_SIZE)
-            throw new VoldemortException("Invalid chunk size, chunk size must be in the range "
-                                         + MIN_CHUNK_SIZE + "..." + MAX_CHUNK_SIZE);
-    }
-
-    /**
-     * Create the store builder
-     * 
-     * @param conf A base configuration to start with
-     * @param mapperClass The class to use as the mapper
-     * @param inputFormatClass The input format to use for reading values
-     * @param cluster The voldemort cluster for which the stores are being built
-     * @param storeDef The store definition of the store
-     * @param chunkSizeBytes The size of the chunks used by the read-only store
-     * @param tempDir The temporary directory to use in hadoop for intermediate
-     *        reducer output
-     * @param outputDir The directory in which to place the built stores
-     * @param inputPath The path from which to read input data
-     * @param checkSumType The checksum algorithm to use
-     */
-    @SuppressWarnings("unchecked")
-    public HadoopStoreBuilder(Configuration conf,
-                              Class mapperClass,
-                              Class<? extends InputFormat> inputFormatClass,
-                              Cluster cluster,
-                              StoreDefinition storeDef,
-                              long chunkSizeBytes,
-                              Path tempDir,
-                              Path outputDir,
-                              Path inputPath,
-                              CheckSumType checkSumType) {
-        this(conf,
-             mapperClass,
-             inputFormatClass,
-             cluster,
-             storeDef,
-             chunkSizeBytes,
-             tempDir,
-             outputDir,
-             inputPath);
-        this.checkSumType = checkSumType;
-
-    }
-
-    /**
-     * Create the store builder
-     * 
-     * @param conf A base configuration to start with
-     * @param mapperClass The class to use as the mapper
-     * @param inputFormatClass The input format to use for reading values
-     * @param cluster The voldemort cluster for which the stores are being built
-     * @param storeDef The store definition of the store
-     * @param chunkSizeBytes The size of the chunks used by the read-only store
-     * @param tempDir The temporary directory to use in hadoop for intermediate
-     *        reducer output
-     * @param outputDir The directory in which to place the built stores
-     * @param inputPath The path from which to read input data
-     * @param checkSumType The checksum algorithm to use
-     * @param saveKeys Boolean to signify if we want to save the key as well
-     * @param reducerPerBucket Boolean to signify whether we want to have a
-     *        single reducer for a bucket ( thereby resulting in all chunk files
-     *        for a bucket being generated in a single reducer )
-     */
-    @SuppressWarnings("unchecked")
-    public HadoopStoreBuilder(Configuration conf,
-                              Class mapperClass,
-                              Class<? extends InputFormat> inputFormatClass,
-                              Cluster cluster,
-                              StoreDefinition storeDef,
-                              long chunkSizeBytes,
-                              Path tempDir,
-                              Path outputDir,
-                              Path inputPath,
-                              CheckSumType checkSumType,
-                              boolean saveKeys,
-                              boolean reducerPerBucket) {
-        this(conf,
-             mapperClass,
-             inputFormatClass,
-             cluster,
-             storeDef,
-             chunkSizeBytes,
-             tempDir,
-             outputDir,
-             inputPath,
-             checkSumType);
-        this.saveKeys = saveKeys;
-        this.reducerPerBucket = reducerPerBucket;
-    }
-
-    /**
-     * Create the store builder
-     * 
+     *
      * @param conf A base configuration to start with
      * @param mapperClass The class to use as the mapper
      * @param inputFormatClass The input format to use for reading values
@@ -287,25 +123,35 @@ public class HadoopStoreBuilder {
                               CheckSumType checkSumType,
                               boolean saveKeys,
                               boolean reducerPerBucket,
-                              int numChunks) {
-        super();
+                              long chunkSizeBytes,
+                              int numChunks,
+                              boolean isAvro) {
         this.config = conf;
         this.mapperClass = Utils.notNull(mapperClass);
         this.inputFormatClass = Utils.notNull(inputFormatClass);
         this.inputPath = inputPath;
         this.cluster = Utils.notNull(cluster);
         this.storeDef = Utils.notNull(storeDef);
-        this.chunkSizeBytes = -1;
         this.tempDir = tempDir;
         this.outputDir = Utils.notNull(outputDir);
         this.checkSumType = checkSumType;
         this.saveKeys = saveKeys;
         this.reducerPerBucket = reducerPerBucket;
+        this.chunkSizeBytes = chunkSizeBytes;
         this.numChunks = numChunks;
-        isAvro = false;
-        if(numChunks <= 0)
-            throw new VoldemortException("Number of chunks should be greater than zero");
+        this.isAvro = isAvro;
+
+        if(numChunks <= 0) {
+            logger.info("HadoopStoreBuilder constructed with numChunks <= 0, thus relying chunk size.");
+            if(chunkSizeBytes > MAX_CHUNK_SIZE || chunkSizeBytes < MIN_CHUNK_SIZE) {
+                throw new VoldemortException("Invalid chunk size, chunk size must be in the range "
+                        + MIN_CHUNK_SIZE + "..." + MAX_CHUNK_SIZE);
+            }
+        } else {
+            logger.info("HadoopStoreBuilder constructed with numChunks > 0, thus ignoring chunk size.");
+        }
     }
+
 
     /**
      * Run the job
@@ -551,17 +397,6 @@ public class HadoopStoreBuilder {
             logger.error("Error in Store builder", e);
             throw new VoldemortException(e);
         }
-
-    }
-
-    /**
-     * Run the job
-     */
-    public void buildAvro() {
-
-        isAvro = true;
-        build();
-        return;
 
     }
 

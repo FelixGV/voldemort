@@ -397,71 +397,33 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
             fs.delete(outputDir, true);
         }
 
-        HadoopStoreBuilder builder = null;
+        HadoopStoreBuilder builder;
+
+        Class mapperClass;
+        Class<? extends InputFormat> inputFormatClass;
 
         if(isAvro) {
-
-            if(conf.getNumChunks() == -1) {
-                builder = new HadoopStoreBuilder(configuration,
-
-                                                 AvroStoreBuilderMapper.class,
-                                                 (Class<? extends InputFormat>) AvroInputFormat.class,
-                                                 cluster,
-                                                 storeDef,
-                                                 chunkSize,
-                                                 tempDir,
-                                                 outputDir,
-                                                 inputPath,
-                                                 checkSumType,
-                                                 saveKeys,
-                                                 reducerPerBucket);
-            } else {
-                builder = new HadoopStoreBuilder(configuration,
-                                                 AvroStoreBuilderMapper.class,
-                                                 (Class<? extends InputFormat>) AvroInputFormat.class,
-                                                 cluster,
-                                                 storeDef,
-                                                 tempDir,
-                                                 outputDir,
-                                                 inputPath,
-                                                 checkSumType,
-                                                 saveKeys,
-                                                 reducerPerBucket,
-                                                 conf.getNumChunks());
-            }
-
-            builder.buildAvro();
-            return;
-        }
-
-        if(conf.getNumChunks() == -1) {
-            builder = new HadoopStoreBuilder(configuration,
-                                             VoldemortStoreBuilderMapper.class,
-                                             JsonSequenceFileInputFormat.class,
-                                             cluster,
-                                             storeDef,
-                                             chunkSize,
-                                             tempDir,
-                                             outputDir,
-                                             inputPath,
-                                             checkSumType,
-                                             saveKeys,
-                                             reducerPerBucket);
+            mapperClass = AvroStoreBuilderMapper.class;
+            inputFormatClass = AvroInputFormat.class;
         } else {
-            builder = new HadoopStoreBuilder(configuration,
-                                             VoldemortStoreBuilderMapper.class,
-                                             JsonSequenceFileInputFormat.class,
-                                             cluster,
-                                             storeDef,
-                                             tempDir,
-                                             outputDir,
-                                             inputPath,
-                                             checkSumType,
-                                             saveKeys,
-                                             reducerPerBucket,
-                                             conf.getNumChunks());
+            mapperClass = VoldemortStoreBuilderMapper.class;
+            inputFormatClass = JsonSequenceFileInputFormat.class;
         }
 
+        builder = new HadoopStoreBuilder(configuration,
+                                         mapperClass,
+                                         inputFormatClass,
+                                         cluster,
+                                         storeDef,
+                                         tempDir,
+                                         outputDir,
+                                         inputPath,
+                                         checkSumType,
+                                         saveKeys,
+                                         reducerPerBucket,
+                                         chunkSize,
+                                         conf.getNumChunks(),
+                                         isAvro);
         builder.build();
     }
 
