@@ -162,8 +162,8 @@ public class HadoopStoreBuilderTest {
                                                             false,
                                                             64 * 1024,
                                                             -1,
-                                                            false
-        );
+                                                            false,
+                null);
         builder.build();
 
         // Should not produce node--1 directory + have one folder for every node
@@ -230,8 +230,8 @@ public class HadoopStoreBuilderTest {
                 false,
                 64 * 1024,
                 -1,
-                false
-        );
+                false,
+                null);
         builder.build();
 
         builder = new HadoopStoreBuilder(
@@ -248,8 +248,8 @@ public class HadoopStoreBuilderTest {
                 false,
                 64 * 1024,
                 -1,
-                false
-        );
+                false,
+                null);
         builder.build();
 
         // Check if checkSum is generated in outputDir

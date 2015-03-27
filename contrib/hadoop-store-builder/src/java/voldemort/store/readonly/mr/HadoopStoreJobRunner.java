@@ -203,8 +203,8 @@ public class HadoopStoreJobRunner extends Configured implements Tool {
                                                             reducerPerBucket,
                                                             chunkSizeBytes,
                                                             numChunks,
-                                                            isAvro
-        );
+                                                            isAvro,
+                null);
 
         builder.build();
         return 0;

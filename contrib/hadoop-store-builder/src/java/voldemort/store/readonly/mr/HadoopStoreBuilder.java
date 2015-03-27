@@ -88,8 +88,8 @@ public class HadoopStoreBuilder {
     private boolean saveKeys = false;
     private boolean reducerPerBucket = false;
     private int numChunks = -1;
-
     private boolean isAvro;
+    private Long minNumberOfRecords;
 
     /**
      * Create the store builder
@@ -100,18 +100,21 @@ public class HadoopStoreBuilder {
      * @param cluster The voldemort cluster for which the stores are being built
      * @param storeDef The store definition of the store
      * @param tempDir The temporary directory to use in hadoop for intermediate
-     *        reducer output
+*        reducer output
      * @param outputDir The directory in which to place the built stores
      * @param inputPath The path from which to read input data
      * @param checkSumType The checksum algorithm to use
      * @param saveKeys Boolean to signify if we want to save the key as well
      * @param reducerPerBucket Boolean to signify whether we want to have a
-     *        single reducer for a bucket ( thereby resulting in all chunk files
-     *        for a bucket being generated in a single reducer )
+*        single reducer for a bucket ( thereby resulting in all chunk files
+*        for a bucket being generated in a single reducer )
+     * @param chunkSizeBytes Size of each chunks (ignored if numChunks is > 0)
      * @param numChunks Number of chunks per bucket ( partition or partition
-     *        replica )
+*        replica )
+     * @param isAvro whether the data format is avro
+     * @param minNumberOfRecords
+     *
      */
-    @SuppressWarnings("unchecked")
     public HadoopStoreBuilder(Configuration conf,
                               Class mapperClass,
                               Class<? extends InputFormat> inputFormatClass,
@@ -125,7 +128,8 @@ public class HadoopStoreBuilder {
                               boolean reducerPerBucket,
                               long chunkSizeBytes,
                               int numChunks,
-                              boolean isAvro) {
+                              boolean isAvro,
+                              Long minNumberOfRecords) {
         this.config = conf;
         this.mapperClass = Utils.notNull(mapperClass);
         this.inputFormatClass = Utils.notNull(inputFormatClass);
@@ -140,6 +144,7 @@ public class HadoopStoreBuilder {
         this.chunkSizeBytes = chunkSizeBytes;
         this.numChunks = numChunks;
         this.isAvro = isAvro;
+        this.minNumberOfRecords = minNumberOfRecords == null ? 1 : minNumberOfRecords;
 
         if(numChunks <= 0) {
             logger.info("HadoopStoreBuilder constructed with numChunks <= 0, thus relying chunk size.");
@@ -278,6 +283,13 @@ public class HadoopStoreBuilder {
 
             // Once the job has completed log the counter
             Counters counters = job.getCounters();
+
+            long numberOfRecords = counters.findCounter("org.apache.hadoop.mapred.Task$Counter","REDUCE_I‌​NPUT_GROUPS").getValue();
+
+            if (numberOfRecords < minNumberOfRecords) {
+                throw new VoldemortException("The number of records in the data set (" + numberOfRecords +
+                        ") is lower than the minimum required (" + minNumberOfRecords + "). Aborting.");
+            }
 
             if(saveKeys) {
                 logger.info("Number of collisions in the job - "
