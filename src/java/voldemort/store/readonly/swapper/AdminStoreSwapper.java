@@ -4,10 +4,7 @@ import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 import org.apache.log4j.Logger;
 
@@ -18,7 +15,6 @@ import voldemort.cluster.Node;
 import voldemort.store.readonly.ReadOnlyUtils;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class AdminStoreSwapper extends StoreSwapper {
@@ -27,7 +23,6 @@ public class AdminStoreSwapper extends StoreSwapper {
 
     private AdminClient adminClient;
     private long timeoutMs;
-    private boolean deleteFailedFetch = false;
     private boolean rollbackFailedSwap = false;
 
     /**
@@ -47,10 +42,9 @@ public class AdminStoreSwapper extends StoreSwapper {
                              long timeoutMs,
                              boolean deleteFailedFetch,
                              boolean rollbackFailedSwap) {
-        super(cluster, executor);
+        super(cluster, executor, deleteFailedFetch);
         this.adminClient = adminClient;
         this.timeoutMs = timeoutMs;
-        this.deleteFailedFetch = deleteFailedFetch;
         this.rollbackFailedSwap = rollbackFailedSwap;
     }
 
@@ -92,74 +86,32 @@ public class AdminStoreSwapper extends StoreSwapper {
     }
 
     @Override
-    public List<String> invokeFetch(final String storeName,
-                                    final String basePath,
-                                    final long pushVersion) {
-        // do fetch
-        Map<Integer, Future<String>> fetchDirs = new HashMap<Integer, Future<String>>();
-        for(final Node node: cluster.getNodes()) {
-            fetchDirs.put(node.getId(), executor.submit(new Callable<String>() {
+    public String fetchOneNodeStoreVersion(String storeName,
+                                           String basePath,
+                                           long pushVersion,
+                                           Node node) throws Exception {
+        String storeDir = basePath + "/node-" + node.getId();
+        logger.info("Invoking fetch for node " + node.getId() + " for " + storeDir);
+        String response = adminClient.readonlyOps.fetchStore(node.getId(),
+                storeName,
+                storeDir,
+                pushVersion,
+                timeoutMs);
+        if(response == null)
+            throw new VoldemortException("Fetch request on node " + node.getId() + " ("
+                    + node.getHost() + ") failed");
+        logger.info("Fetch succeeded on node " + node.getId());
+        return response.trim();
+    }
 
-                public String call() throws Exception {
-                    String storeDir = basePath + "/node-" + node.getId();
-                    logger.info("Invoking fetch for node " + node.getId() + " for " + storeDir);
-                    String response = adminClient.readonlyOps.fetchStore(node.getId(),
-                                                                         storeName,
-                                                                         storeDir,
-                                                                         pushVersion,
-                                                                         timeoutMs);
-                    if(response == null)
-                        throw new VoldemortException("Fetch request on node " + node.getId() + " ("
-                                                     + node.getHost() + ") failed");
-                    logger.info("Fetch succeeded on node " + node.getId());
-                    return response.trim();
+    @Override
+    public void deleteOneNodeStoreVersion(int nodeId, String storeName, String storeDir) {
+        adminClient.readonlyOps.failedFetchStore(nodeId, storeName, storeDir);
+    }
 
-                }
-            }));
-        }
-
-        // wait for all operations to complete successfully
-        TreeMap<Integer, String> results = Maps.newTreeMap();
-        HashMap<Integer, Exception> exceptions = Maps.newHashMap();
-
-        for(int nodeId = 0; nodeId < cluster.getNumberOfNodes(); nodeId++) {
-            Future<String> val = fetchDirs.get(nodeId);
-            try {
-                results.put(nodeId, val.get());
-            } catch(Exception e) {
-                exceptions.put(nodeId, new VoldemortException(e));
-            }
-        }
-
-        if(!exceptions.isEmpty()) {
-
-            if(deleteFailedFetch) {
-                // Delete data from successful nodes
-                for(int successfulNodeId: results.keySet()) {
-                    try {
-                        logger.info("Deleting fetched data from node " + successfulNodeId);
-
-                        adminClient.readonlyOps.failedFetchStore(successfulNodeId,
-                                                                 storeName,
-                                                                 results.get(successfulNodeId));
-                    } catch(Exception e) {
-                        logger.error("Exception thrown during delete operation on node "
-                                     + successfulNodeId + " : ", e);
-                    }
-                }
-            }
-
-            // Finally log the errors for the user
-            for(int failedNodeId: exceptions.keySet()) {
-                logger.error("Error on node " + failedNodeId + " during push : ",
-                             exceptions.get(failedNodeId));
-            }
-
-            throw new VoldemortException("Exception during pushes to nodes "
-                                         + Joiner.on(",").join(exceptions.keySet()) + " failed");
-        }
-
-        return Lists.newArrayList(results.values());
+    @Override
+    protected void disableOneNodeStoreVersion(int nodeId, String storeName, long pushVersion) throws Exception {
+        // FIXME: implement this
     }
 
     @Override

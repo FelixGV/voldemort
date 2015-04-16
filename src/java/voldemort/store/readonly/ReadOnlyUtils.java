@@ -197,16 +197,17 @@ public class ReadOnlyUtils {
      * specified
      * 
      * @param rootDir The parent directory
-     * @param maxId The
+     * @param minVersion The minimum version number to include in the returned version directories
+     * @param maxVersion The maximum version number to include in the returned version directories
      * @return An array of version directories
      */
-    public static File[] getVersionDirs(File rootDir, final long minId, final long maxId) {
+    public static File[] getVersionDirs(File rootDir, final long minVersion, final long maxVersion) {
         return rootDir.listFiles(new FileFilter() {
 
             public boolean accept(File pathName) {
                 if(checkVersionDirName(pathName)) {
                     long versionId = getVersionId(pathName);
-                    if(versionId != -1 && versionId <= maxId && versionId >= minId) {
+                    if(versionId != -1 && versionId <= maxVersion && versionId >= minVersion) {
                         return true;
                     }
                 }

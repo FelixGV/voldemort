@@ -541,7 +541,7 @@ public class AdminClient {
          * @param originalPartitions The entire replicating partition list
          *        (including the one needed by the restore node)
          * @param donorMap All donor nodes that will be fetched from
-         * @param zondId The zone from which donor nodes will be chosen from; -1
+         * @param zoneId The zone from which donor nodes will be chosen from; -1
          *        means all zones are fine
          * @param cluster The cluster metadata
          * @param storeDef The store to be restored
@@ -1067,7 +1067,6 @@ public class AdminClient {
         /**
          * Sets metadata.
          * 
-         * @param adminClient An instance of AdminClient points to given cluster
          * @param nodeIds Node ids to set metadata
          * @param key Metadata key to set
          * @param value Metadata value to set

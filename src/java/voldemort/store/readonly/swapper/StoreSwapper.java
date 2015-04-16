@@ -17,12 +17,14 @@ package voldemort.store.readonly.swapper;
 
 import java.io.File;
 import java.io.StringReader;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 
@@ -33,10 +35,12 @@ import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 import org.apache.log4j.Logger;
 
+import voldemort.VoldemortException;
 import voldemort.client.ClientConfig;
 import voldemort.client.protocol.admin.AdminClient;
 import voldemort.client.protocol.admin.AdminClientConfig;
 import voldemort.cluster.Cluster;
+import voldemort.cluster.Node;
 import voldemort.utils.CmdUtils;
 import voldemort.utils.Time;
 import voldemort.utils.VoldemortIOUtils;
@@ -46,10 +50,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
 
 /**
- * A helper class to invoke the FETCH and SWAP operations on a remote store via
- * HTTP.
- * 
- * 
+ * A helper class to invoke the FETCH and SWAP operations on a remote store.
  */
 public abstract class StoreSwapper {
 
@@ -57,20 +58,113 @@ public abstract class StoreSwapper {
 
     protected final Cluster cluster;
     protected final ExecutorService executor;
+    private final AbstractFailedFetchStrategy failedFetchStrategy;
+    private final List<AbstractFailedFetchStrategy> failedFetchStrategyList;
 
-    public StoreSwapper(Cluster cluster, ExecutorService executor) {
-        super();
+    public StoreSwapper(Cluster cluster, ExecutorService executor, FailedFetchStrategy failedFetchStrategy) {
         this.cluster = cluster;
         this.executor = executor;
+        this.failedFetchStrategy = FailedFetchStrategy.getStrategyInstance(this, failedFetchStrategy);
+        failedFetchStrategyList = Lists.newArrayList(this.failedFetchStrategy);
+    }
+
+
+    public StoreSwapper(Cluster cluster, ExecutorService executor) {
+        this(cluster, executor, FailedFetchStrategy.NO_OP);
+    }
+
+    public StoreSwapper(Cluster cluster, ExecutorService executor, boolean deleteFailedFetch) {
+        this(cluster, executor, deleteFailedFetch ? FailedFetchStrategy.DELETE_ALL : FailedFetchStrategy.NO_OP);
     }
 
     public void swapStoreData(String storeName, String basePath, long pushVersion) {
-        List<String> fetched = invokeFetch(storeName, basePath, pushVersion);
-        invokeSwap(storeName, fetched);
+        try {
+            invokeFetch(storeName, basePath, pushVersion);
+        } catch (RecoverableFailedFetchException e) {
+            invokeSwap(storeName, pushVersion);
+            throw e;
+        }
+        // Any non-recoverable exception will prevent us from reaching the swap invocation.
+        invokeSwap(storeName, pushVersion);
     }
 
-    public abstract List<String> invokeFetch(String storeName, String basePath, long pushVersion);
+    public void invokeFetch(final String storeName, final String basePath, final long pushVersion) {
+        // do fetch
+        Map<Integer, Future<String>> fetchDirs = Maps.newHashMap();
+        for(final Node node: cluster.getNodes()) {
+            fetchDirs.put(node.getId(), executor.submit(new Callable<String>() {
+                public String call() throws Exception {
+                    return fetchOneNodeStoreVersion(storeName, basePath, pushVersion, node);
+                }
+            }));
+        }
 
+        // wait for all operations to complete successfully
+        Map<Integer, String> results = Maps.newTreeMap();
+        Map<Integer, Exception> exceptions = Maps.newHashMap();
+
+        for(int nodeId = 0; nodeId < cluster.getNumberOfNodes(); nodeId++) {
+            Future<String> val = fetchDirs.get(nodeId);
+            try {
+                results.put(nodeId, val.get());
+            } catch(Exception e) {
+                exceptions.put(nodeId, new VoldemortException(e));
+            }
+        }
+
+        if(!exceptions.isEmpty()) {
+            // Log the errors for the user
+            for (int failedNodeId: exceptions.keySet()) {
+                logger.error("Error on node " + failedNodeId + " during push : ",
+                        exceptions.get(failedNodeId));
+            }
+
+            Iterator<AbstractFailedFetchStrategy> strategyIterator = failedFetchStrategyList.iterator();
+            boolean swapIsPossible = false;
+            AbstractFailedFetchStrategy strategy = null;
+            while (strategyIterator.hasNext() && !swapIsPossible) {
+                strategy = strategyIterator.next();
+                try {
+                    swapIsPossible = strategy.dealWithIt(storeName, pushVersion, results, exceptions);
+                } catch (Exception e) {
+                    if (strategyIterator.hasNext()) {
+                        logger.error("Got an exception while trying to execute: " + strategy.toString() +
+                                ". Continuing with next strategy.", e);
+                    } else {
+                        logger.error("Got an exception while trying to execute the last remaining strategy: "
+                                + strategy.toString() + ".", e);
+                    }
+                }
+            }
+
+            if (swapIsPossible) {
+                throw new RecoverableFailedFetchException("FailedFetchStrategy [" + strategy.toString() +
+                        "] executed successfully, which will allow the swap to happen.");
+            } else {
+                throw new UnrecoverableFailedFetchException("Exception during pushes to nodes "
+                        + Joiner.on(",").join(exceptions.keySet()) + " failed. Swap will be aborted.");
+            }
+        }
+    }
+
+    protected abstract String fetchOneNodeStoreVersion(String storeName,
+                                                       String basePath,
+                                                       long pushVersion,
+                                                       Node node) throws Exception;
+
+    protected abstract void deleteOneNodeStoreVersion(int nodeId, String storeName, String storeDir) throws Exception;
+
+    protected abstract void disableOneNodeStoreVersion(int nodeId, String storeName, long pushVersion) throws Exception;
+
+    public void invokeSwap(String storeName, long pushVersion) {
+
+    }
+
+    protected abstract void swapOneNodeStoreVersion(int nodeId, String storeName, long pushVersion) throws Exception;
+
+    // protected abstract void rollbackOneNode(String TODO_determine_params);
+
+    // FIXME: Delete this atrocity.
     public abstract void invokeSwap(String storeName, List<String> fetchFiles);
 
     public abstract void invokeRollback(String storeName, long pushVersion);
@@ -169,4 +263,5 @@ public abstract class StoreSwapper {
         }
         System.exit(0);
     }
+
 }

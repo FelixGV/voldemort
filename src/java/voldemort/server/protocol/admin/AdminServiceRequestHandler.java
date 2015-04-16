@@ -701,6 +701,14 @@ public class AdminServiceRequestHandler implements RequestHandler {
         return response.build();
     }
 
+    /**
+     * This operation is a misnomer. It can be used to rollback as well as to roll forward.
+     *
+     * FIXME: Rename this to handleStoreVersionSwap
+     *
+     * @param request
+     * @return
+     */
     public VAdminProto.RollbackStoreResponse handleRollbackStore(VAdminProto.RollbackStoreRequest request) {
         final String storeName = request.getStoreName();
         final long pushVersion = request.getPushVersion();

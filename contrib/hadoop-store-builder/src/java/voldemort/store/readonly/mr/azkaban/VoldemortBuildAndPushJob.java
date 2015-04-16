@@ -55,6 +55,7 @@ import voldemort.store.readonly.mr.utils.AvroUtils;
 import voldemort.store.readonly.mr.utils.HadoopUtils;
 import voldemort.store.readonly.mr.utils.JsonSchema;
 import voldemort.store.readonly.mr.utils.VoldemortUtils;
+import voldemort.store.readonly.swapper.RecoverableFailedFetchException;
 import voldemort.utils.ReflectUtils;
 import voldemort.utils.Utils;
 import voldemort.utils.Props;
@@ -389,7 +390,12 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         }
                         invokeHooks(BuildAndPushStatus.PUSHING, url);
                         runPushStore(props, url, buildOutputDir);
-                    } catch(Exception e) {
+                        invokeHooks(BuildAndPushStatus.SWAPPED, url);
+                    } catch (RecoverableFailedFetchException e) {
+                        warn("There were limited fetch failures that were considered acceptable, so the swap was allowed to happen.", e);
+                        invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
+                        // We do not add it to the exceptions map, since we want the job to be marked as successful...
+                    } catch (Exception e) {
                         log.error("Exception during push for url " + url, e);
                         exceptions.put(url, e);
                     }

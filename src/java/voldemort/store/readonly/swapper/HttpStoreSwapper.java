@@ -7,10 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
@@ -27,7 +24,6 @@ import voldemort.store.readonly.ReadOnlyUtils;
 import voldemort.utils.VoldemortIOUtils;
 
 import com.google.common.base.Joiner;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 public class HttpStoreSwapper extends StoreSwapper {
@@ -36,7 +32,6 @@ public class HttpStoreSwapper extends StoreSwapper {
 
     private final HttpClient httpClient;
     private final String readOnlyMgmtPath;
-    private boolean deleteFailedFetch = false;
     private boolean rollbackFailedSwap = false;
 
     public HttpStoreSwapper(Cluster cluster,
@@ -45,10 +40,9 @@ public class HttpStoreSwapper extends StoreSwapper {
                             String readOnlyMgmtPath,
                             boolean deleteFailedFetch,
                             boolean rollbackFailedSwap) {
-        super(cluster, executor);
+        super(cluster, executor, deleteFailedFetch);
         this.httpClient = httpClient;
         this.readOnlyMgmtPath = readOnlyMgmtPath;
-        this.deleteFailedFetch = deleteFailedFetch;
         this.rollbackFailedSwap = rollbackFailedSwap;
     }
 
@@ -62,114 +56,82 @@ public class HttpStoreSwapper extends StoreSwapper {
     }
 
     @Override
-    public List<String> invokeFetch(final String storeName,
-                                    final String basePath,
-                                    final long pushVersion) {
-        // do fetch
-        Map<Integer, Future<String>> fetchDirs = new HashMap<Integer, Future<String>>();
-        for(final Node node: cluster.getNodes()) {
-            fetchDirs.put(node.getId(), executor.submit(new Callable<String>() {
+    public String fetchOneNodeStoreVersion(final String storeName,
+                                           final String basePath,
+                                           final long pushVersion,
+                                           final Node node) throws Exception {
+        String url = node.getHttpUrl() + "/" + readOnlyMgmtPath;
+        HttpPost post = new HttpPost(url);
 
-                public String call() throws Exception {
-                    String url = node.getHttpUrl() + "/" + readOnlyMgmtPath;
-                    HttpPost post = new HttpPost(url);
+        List<NameValuePair> params = new ArrayList<NameValuePair>();
+        params.add(new BasicNameValuePair("operation", "fetch"));
+        String storeDir = basePath + "/node-" + node.getId();
+        params.add(new BasicNameValuePair("dir", storeDir));
+        params.add(new BasicNameValuePair("store", storeName));
+        if(pushVersion > 0)
+            params.add(new BasicNameValuePair("pushVersion", Long.toString(pushVersion)));
+        post.setEntity(new UrlEncodedFormEntity(params));
 
-                    List<NameValuePair> params = new ArrayList<NameValuePair>();
-                    params.add(new BasicNameValuePair("operation", "fetch"));
-                    String storeDir = basePath + "/node-" + node.getId();
-                    params.add(new BasicNameValuePair("dir", storeDir));
-                    params.add(new BasicNameValuePair("store", storeName));
-                    if(pushVersion > 0)
-                        params.add(new BasicNameValuePair("pushVersion", Long.toString(pushVersion)));
-                    post.setEntity(new UrlEncodedFormEntity(params));
+        logger.info("Invoking fetch for node " + node.getId() + " for " + storeDir);
 
-                    logger.info("Invoking fetch for node " + node.getId() + " for " + storeDir);
+        HttpResponse httpResponse = null;
+        try {
+            httpResponse = httpClient.execute(post);
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            InputStream is = httpResponse.getEntity().getContent();
+            String response = VoldemortIOUtils.toString(is, 30000);
 
-                    HttpResponse httpResponse = null;
-                    try {
-                        httpResponse = httpClient.execute(post);
-                        int responseCode = httpResponse.getStatusLine().getStatusCode();
-                        InputStream is = httpResponse.getEntity().getContent();
-                        String response = VoldemortIOUtils.toString(is, 30000);
+            if(responseCode != HttpURLConnection.HTTP_OK)
+                throw new VoldemortException("Fetch request on node "
+                        + node.getId()
+                        + " ("
+                        + url
+                        + ") failed: "
+                        + httpResponse.getStatusLine()
+                        .getReasonPhrase());
+            logger.info("Fetch succeeded on node " + node.getId());
+            return response.trim();
+        } finally {
+            VoldemortIOUtils.closeQuietly(httpResponse);
+        }
+    }
 
-                        if(responseCode != HttpURLConnection.HTTP_OK)
-                            throw new VoldemortException("Fetch request on node "
-                                                         + node.getId()
-                                                         + " ("
-                                                         + url
-                                                         + ") failed: "
-                                                         + httpResponse.getStatusLine()
-                                                                       .getReasonPhrase());
-                        logger.info("Fetch succeeded on node " + node.getId());
-                        return response.trim();
-                    } finally {
-                        VoldemortIOUtils.closeQuietly(httpResponse);
-                    }
-                }
-            }));
+    @Override
+    public void deleteOneNodeStoreVersion(int nodeId,
+                                          String storeName,
+                                          String storeDir) throws Exception {
+        HttpResponse httpResponse = null;
+        try {
+            String url = cluster.getNodeById(nodeId).getHttpUrl() + "/"
+                    + readOnlyMgmtPath;
+            HttpPost post = new HttpPost(url);
+
+            List<NameValuePair> params = new ArrayList<NameValuePair>();
+            params.add(new BasicNameValuePair("operation", "failed-fetch"));
+            params.add(new BasicNameValuePair("dir", storeDir));
+            params.add(new BasicNameValuePair("store", storeName));
+            post.setEntity(new UrlEncodedFormEntity(params));
+
+            logger.info("Deleting fetched data from node " + nodeId);
+
+            httpResponse = httpClient.execute(post);
+            int responseCode = httpResponse.getStatusLine().getStatusCode();
+            String response = httpResponse.getStatusLine().getReasonPhrase();
+
+            if(responseCode == 200) {
+                logger.info("Deleted successfully on node " + nodeId);
+            } else {
+                throw new VoldemortException(response);
+            }
+        } finally {
+            VoldemortIOUtils.closeQuietly(httpResponse);
         }
 
-        // wait for all operations to complete successfully
-        TreeMap<Integer, String> results = Maps.newTreeMap();
-        HashMap<Integer, Exception> exceptions = Maps.newHashMap();
+    }
 
-        for(int nodeId = 0; nodeId < cluster.getNumberOfNodes(); nodeId++) {
-            Future<String> val = fetchDirs.get(nodeId);
-            try {
-                results.put(nodeId, val.get());
-            } catch(Exception e) {
-                exceptions.put(nodeId, new VoldemortException(e));
-            }
-        }
-
-        if(!exceptions.isEmpty()) {
-
-            if(deleteFailedFetch) {
-                // Delete data from successful nodes
-                for(int successfulNodeId: results.keySet()) {
-                    HttpResponse httpResponse = null;
-                    try {
-                        String url = cluster.getNodeById(successfulNodeId).getHttpUrl() + "/"
-                                     + readOnlyMgmtPath;
-                        HttpPost post = new HttpPost(url);
-
-                        List<NameValuePair> params = new ArrayList<NameValuePair>();
-                        params.add(new BasicNameValuePair("operation", "failed-fetch"));
-                        params.add(new BasicNameValuePair("dir", results.get(successfulNodeId)));
-                        params.add(new BasicNameValuePair("store", storeName));
-                        post.setEntity(new UrlEncodedFormEntity(params));
-
-                        logger.info("Deleting fetched data from node " + successfulNodeId);
-
-                        httpResponse = httpClient.execute(post);
-                        int responseCode = httpResponse.getStatusLine().getStatusCode();
-                        String response = httpResponse.getStatusLine().getReasonPhrase();
-
-                        if(responseCode == 200) {
-                            logger.info("Deleted successfully on node " + successfulNodeId);
-                        } else {
-                            throw new VoldemortException(response);
-                        }
-                    } catch(Exception e) {
-                        logger.error("Exception thrown during delete operation on node "
-                                     + successfulNodeId + " : ", e);
-                    } finally {
-                        VoldemortIOUtils.closeQuietly(httpResponse);
-                    }
-                }
-            }
-
-            // Finally log the errors for the user
-            for(int failedNodeId: exceptions.keySet()) {
-                logger.error("Error on node " + failedNodeId + " during push : ",
-                             exceptions.get(failedNodeId));
-            }
-
-            throw new VoldemortException("Exception during pushes to nodes "
-                                         + Joiner.on(",").join(exceptions.keySet()) + " failed");
-        }
-
-        return Lists.newArrayList(results.values());
+    @Override
+    protected void disableOneNodeStoreVersion(int nodeId, String storeName, long pushVersion) throws Exception {
+        throw new VoldemortException("The HTTP Store Swapper does not support disabling nodes!");
     }
 
     @Override

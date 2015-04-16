@@ -36,6 +36,7 @@ import voldemort.cluster.Cluster;
 import voldemort.store.readonly.mr.utils.HadoopUtils;
 import voldemort.store.readonly.swapper.AdminStoreSwapper;
 import azkaban.jobExecutor.AbstractJob;
+import voldemort.store.readonly.swapper.RecoverableFailedFetchException;
 import voldemort.utils.Props;
 
 /*
@@ -49,12 +50,7 @@ public class VoldemortSwapJob extends AbstractJob {
     private String hdfsFetcherPort;
 
     public VoldemortSwapJob(String id, Props props) throws IOException {
-        super(id, Logger.getLogger(VoldemortSwapJob.class.getName()));
-        _props = props;
-
-        this.hdfsFetcherProtocol = props.getString("voldemort.fetcher.protocol", "hftp");
-        this.hdfsFetcherPort = props.getString("voldemort.fetcher.port", "50070");
-        swapConf = new VoldemortSwapConf(_props);
+        this(id, props, new VoldemortSwapConf(props));
     }
 
     public VoldemortSwapJob(String id, Props props, VoldemortSwapConf conf) throws IOException {
@@ -204,10 +200,16 @@ public class VoldemortSwapJob extends AbstractJob {
                                                           httpTimeoutMs,
                                                           swapConf.getRollback(),
                                                           swapConf.getRollback());
-        swapper.swapStoreData(storeName, dataDir, pushVersion);
-        info("Swap complete.");
-        executor.shutdownNow();
-        executor.awaitTermination(10, TimeUnit.SECONDS);
+        try {
+            swapper.swapStoreData(storeName, dataDir, pushVersion);
+            info("Fetch & Swap completed without issue.");
+        } catch (RecoverableFailedFetchException e) {
+            warn("Swap completed in spite of partial fetch failure.");
+            throw e;
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(10, TimeUnit.SECONDS);
+        }
     }
 
 }
