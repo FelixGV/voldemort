@@ -822,8 +822,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             int maxNodeFailure = props.getInt(PUSH_HA_MAX_NODE_FAILURE, 1);
             Class<? extends FailedFetchLock> failedFetchLockClass = (Class<? extends FailedFetchLock>)
                     props.getClass(PUSH_HA_LOCK_IMPLEMENTATION, HdfsFailedFetchLock.class);
-            String processId = props.getString(AZKABAN_LINK_EXECUTION_URL);
-            Object[] failedFetchLockParameters = new Object[]{props, url, processId};
+            Object[] failedFetchLockParameters = new Object[]{props, url};
             FailedFetchLock failedFetchLock = ReflectUtils.callConstructor(failedFetchLockClass, failedFetchLockParameters);
             failedFetchStrategyList.add(
                     new DisableStoreOnFailedNodeFailedFetchStrategy(
