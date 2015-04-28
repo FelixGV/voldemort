@@ -9,14 +9,16 @@ import java.util.Set;
  */
 public abstract class FailedFetchLock {
     protected final Props props;
-    protected final String clusterId, processId;
-    public FailedFetchLock(Props props, String clusterId, String processId) {
+    protected final String clusterId;
+    public FailedFetchLock(Props props, String clusterId) {
         this.props = props;
         this.clusterId = clusterId;
-        this.processId = processId;
     }
     public abstract void acquireLock() throws Exception;
-    public abstract void releaseLock();
-    public abstract Set<Integer> getDisabledNodes();
-    public abstract void addDisabledNode(int nodeId, String details) throws Exception;
+    public abstract void releaseLock() throws Exception;
+    public abstract Set<Integer> getDisabledNodes() throws Exception;
+    public abstract void addDisabledNode(int nodeId,
+                                         String details,
+                                         String storeName,
+                                         long storeVersion) throws Exception;
 }
