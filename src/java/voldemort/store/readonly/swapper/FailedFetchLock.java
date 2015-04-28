@@ -2,12 +2,13 @@ package voldemort.store.readonly.swapper;
 
 import voldemort.utils.Props;
 
+import java.io.Closeable;
 import java.util.Set;
 
 /**
  * Component to make sure we can do some operations synchronously across many processes.
  */
-public abstract class FailedFetchLock {
+public abstract class FailedFetchLock implements Closeable {
     protected final Props props;
     protected final String clusterId;
     public FailedFetchLock(Props props, String clusterId) {
@@ -21,4 +22,8 @@ public abstract class FailedFetchLock {
                                          String details,
                                          String storeName,
                                          long storeVersion) throws Exception;
+    @Override
+    public String toString() {
+        return this.getClass().getName() + " for cluster: " + clusterId;
+    }
 }

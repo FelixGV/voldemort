@@ -154,7 +154,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     }
 
     @Override
-    public void releaseLock() throws Exception {
+    public synchronized void releaseLock() throws Exception {
         if (!lockAcquired) {
             logger.info("HdfsFailedFetchLock.acquireLock() called while it is already released!");
         } else {
@@ -248,5 +248,22 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 throw new VoldemortException(exceptionMessage(ADD_DISABLED_NODE));
             }
         }
+    }
+
+    /**
+     * Closes this stream and releases any system resources associated
+     * with it. If the stream is already closed then invoking this
+     * method has no effect.
+     *
+     * @throws java.io.IOException if an I/O error occurs
+     */
+    @Override
+    public void close() throws IOException {
+        try {
+            releaseLock();
+        } catch (Exception e) {
+            logger.error("Got an exception during close()", e);
+        }
+        this.fileSystem.close();
     }
 }
