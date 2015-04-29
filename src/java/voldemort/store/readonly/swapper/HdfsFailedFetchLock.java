@@ -63,6 +63,9 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     private final static String RELEASE_LOCK = "release HDFS lock";
     private final static String GET_DISABLED_NODES = "retrieve disabled nodes from HDFS";
     private final static String ADD_DISABLED_NODE = "add a disabled node in HDFS";
+    private final static String IO_EXCEPTION = "of an IOException";
+    private final static String ALREADY_EXISTS = "it is already acquired (most likely)";
+
 
     private final static String PUSH_HA_LOCK_HDFS_TIMEOUT = "push.ha.lock.hdfs.timeout";
     private final static String PUSH_HA_LOCK_HDFS_RETRIES = "push.ha.lock.hdfs.retries";
@@ -105,8 +108,8 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
         return "Exec" + execId + "-Time" + System.currentTimeMillis() + "-" + flowId + "-" + jobId;
     }
 
-    private String errorLog(String action, int attempt) {
-        return "Failed to " + action + " because of an IOException. Attempt # " +
+    private String logMessage(String action, String cause, int attempt) {
+        return "Failed to " + action + " because " + cause + ". Attempt # " +
                 attempt + "/" + maxAttempts + ", will wait " +
                 waitBetweenRetries + " ms until next retry.";
     }
@@ -129,21 +132,24 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     outputStream = this.fileSystem.create(temporaryLockFile, false);
                     props.storeFlattened(outputStream);
 
-                    // deleteOnExit will attempt the delete if the process ends, so this is just to clean
-                    // up the temporary lock files... However, deleteOnExit can fail because of IOExceptions,
-                    // so it's not 100% bullet-proof. Therefore, we don't rely on that for the actual lock.
-                    this.fileSystem.deleteOnExit(temporaryLockFile);
-
                     // We attempt to rename to the globally contended lock path
                     this.lockAcquired = this.fileSystem.rename(temporaryLockFile, this.lockFile);
+
+                    if (!this.lockAcquired) {
+                        logger.warn(logMessage(ACQUIRE_LOCK, ALREADY_EXISTS, attempts));
+                        this.fileSystem.delete(temporaryLockFile, false);
+                    }
                 }  catch (IOException e) {
-                    logger.error(errorLog(ACQUIRE_LOCK, attempts), e);
-                    wait(waitBetweenRetries);
-                    attempts++;
+                    logger.error(logMessage(ACQUIRE_LOCK, IO_EXCEPTION, attempts), e);
                 } finally {
                     if (outputStream != null) {
                         outputStream.close();
                     }
+                }
+
+                if (!this.lockAcquired) {
+                    wait(waitBetweenRetries);
+                    attempts++;
                 }
             }
 
@@ -169,7 +175,10 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     // We attempt to rename the globally contended lock path to the the released path.
                     this.lockAcquired = !(this.fileSystem.rename(this.lockFile, releasedLockFile));
                 }  catch (IOException e) {
-                    logger.error(errorLog(RELEASE_LOCK, attempts), e);
+                    logger.error(logMessage(RELEASE_LOCK, IO_EXCEPTION, attempts), e);
+                }
+
+                if (this.lockAcquired) {
                     wait(waitBetweenRetries);
                     attempts++;
                 }
@@ -199,7 +208,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     }
                 }
             }  catch (IOException e) {
-                logger.error(errorLog(GET_DISABLED_NODES, attempts), e);
+                logger.error(logMessage(GET_DISABLED_NODES, IO_EXCEPTION, attempts), e);
                 wait(waitBetweenRetries);
                 attempts++;
             }
@@ -234,7 +243,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
                     success = true;
                 }  catch (IOException e) {
-                    logger.error(errorLog(ADD_DISABLED_NODE, attempts), e);
+                    logger.error(logMessage(ADD_DISABLED_NODE, IO_EXCEPTION, attempts), e);
                     wait(waitBetweenRetries);
                     attempts++;
                 } finally {
