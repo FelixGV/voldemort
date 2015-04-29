@@ -13,7 +13,7 @@ public abstract class FailedFetchLock implements Closeable {
     protected final String clusterId;
     public FailedFetchLock(Props props, String clusterId) {
         this.props = props;
-        this.clusterId = clusterId;
+        this.clusterId = sanitizeClusterId(clusterId);
     }
     public abstract void acquireLock() throws Exception;
     public abstract void releaseLock() throws Exception;
@@ -25,5 +25,9 @@ public abstract class FailedFetchLock implements Closeable {
     @Override
     public String toString() {
         return this.getClass().getName() + " for cluster: " + clusterId;
+    }
+
+    private String sanitizeClusterId(String clusterId) {
+        return clusterId.replace("tcp:/", "").replace(":", "_").replace("/", "_");
     }
 }

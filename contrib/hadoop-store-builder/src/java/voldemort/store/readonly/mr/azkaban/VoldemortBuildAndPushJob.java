@@ -625,14 +625,13 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         // builder assumes that you are using JsonTypeSerializer. This allows you to tweak your 
         // value/key store xml  as you see fit, but still uses the json sequence file meta data
         // to  build the store.
-        storeDefs = ImmutableList.of(VoldemortUtils.getStoreDef(VoldemortUtils.getStoreDefXml(storeName,
+        storeDefs = ImmutableList.of(VoldemortUtils.getStoreDef(VoldemortUtils.getStoreDefXml(
+                storeName,
                 replicationFactor,
                 requiredReads,
                 requiredWrites,
-                props.containsKey(BUILD_PREFERRED_READS) ? props.getInt(BUILD_PREFERRED_READS)
-                        : null,
-                props.containsKey(BUILD_PREFERRED_WRITES) ? props.getInt(BUILD_PREFERRED_WRITES)
-                        : null,
+                props.containsKey(BUILD_PREFERRED_READS) ? props.getInt(BUILD_PREFERRED_READS) : null,
+                props.containsKey(BUILD_PREFERRED_WRITES) ? props.getInt(BUILD_PREFERRED_WRITES) : null,
                 keySchema,
                 valSchema)));
         cluster = adminClientPerCluster.get(url).getAdminClientCluster();
