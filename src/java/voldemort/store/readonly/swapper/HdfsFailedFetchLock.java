@@ -131,6 +131,8 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     Path temporaryLockFile = new Path(beforeLockDir, getUniqueFileName());
                     outputStream = this.fileSystem.create(temporaryLockFile, false);
                     props.storeFlattened(outputStream);
+                    outputStream.flush();
+                    outputStream.close();
 
                     // We attempt to rename to the globally contended lock path
                     this.lockAcquired = this.fileSystem.rename(temporaryLockFile, this.lockFile);
@@ -143,6 +145,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     logger.error(logMessage(ACQUIRE_LOCK, IO_EXCEPTION, attempts), e);
                 } finally {
                     if (outputStream != null) {
+                        // Just being paranoid...
                         outputStream.close();
                     }
                 }
@@ -162,7 +165,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     @Override
     public synchronized void releaseLock() throws Exception {
         if (!lockAcquired) {
-            logger.info("HdfsFailedFetchLock.acquireLock() called while it is already released!");
+            logger.info("HdfsFailedFetchLock.releaseLock() called while it is already released!");
         } else {
             int attempts = 1;
             while (this.lockAcquired && attempts <= maxAttempts) {
@@ -240,6 +243,8 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
                     outputStream = this.fileSystem.create(failedJobFile, false);
                     props.storeFlattened(outputStream);
+                    outputStream.flush();
+                    outputStream.close();
 
                     success = true;
                 }  catch (IOException e) {
@@ -248,6 +253,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     attempts++;
                 } finally {
                     if (outputStream != null) {
+                        // Just being paranoid...
                         outputStream.close();
                     }
                 }
