@@ -101,8 +101,8 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     // Internal State
     private boolean lockAcquired = false;
 
-    public HdfsFailedFetchLock(Props props, String clusterId) throws Exception {
-        super(props, clusterId);
+    public HdfsFailedFetchLock(Props props, String clusterUrl) throws Exception {
+        super(props, clusterUrl);
         fileSystem = clusterPath.getFileSystem(new Configuration());
         initDirs();
     }
