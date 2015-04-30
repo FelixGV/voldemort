@@ -110,7 +110,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     private void initDirs() throws Exception {
         int attempts = 1;
         boolean success = false;
-        while (this.lockAcquired && attempts <= maxAttempts) {
+        while (!success && attempts <= maxAttempts) {
             try {
                 success = this.fileSystem.mkdirs(new Path(afterLockDir));
 
