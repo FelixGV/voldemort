@@ -119,6 +119,23 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
         return "Failed to " + action + " after " + maxAttempts + " attempts.";
     }
 
+    /**
+     * This function is intended to detect the subset of IOException which are not
+     * considered recoverable, in which case we want to bubble up the exception, instead
+     * of retrying.
+     *
+     * @param e
+     * @throws VoldemortException
+     */
+    private void handleIOException(IOException e, String action, int attempt) throws VoldemortException {
+        if (e.getMessage().contains("Filesystem closed")) {
+            throw new VoldemortException("Got an IOException we cannot recover from while trying to " +
+                    action + ". Attempt # " + attempt + "/" + maxAttempts + ". Will not try again.", e);
+        } else {
+            logger.error(logMessage(action, IO_EXCEPTION, attempt), e);
+        }
+    }
+
     @Override
     public synchronized void acquireLock() throws Exception {
         if (lockAcquired) {
@@ -143,7 +160,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                         this.fileSystem.delete(temporaryLockFile, false);
                     }
                 }  catch (IOException e) {
-                    logger.error(logMessage(ACQUIRE_LOCK, IO_EXCEPTION, attempts), e);
+                    handleIOException(e, ACQUIRE_LOCK, attempts);
                 } finally {
                     if (outputStream != null) {
                         // Just being paranoid...
@@ -183,7 +200,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                         logger.warn(logMessage(RELEASE_LOCK, UNKNOWN_REASONS, attempts));
                     }
                 }  catch (IOException e) {
-                    logger.error(logMessage(RELEASE_LOCK, IO_EXCEPTION, attempts), e);
+                    handleIOException(e, RELEASE_LOCK, attempts);
                 }
 
                 if (this.lockAcquired) {
@@ -216,7 +233,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     }
                 }
             }  catch (IOException e) {
-                logger.error(logMessage(GET_DISABLED_NODES, IO_EXCEPTION, attempts), e);
+                handleIOException(e, GET_DISABLED_NODES, attempts);
                 wait(waitBetweenRetries);
                 attempts++;
             }
@@ -250,7 +267,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
                     success = true;
                 }  catch (IOException e) {
-                    logger.error(logMessage(ADD_DISABLED_NODE, IO_EXCEPTION, attempts), e);
+                    handleIOException(e, ADD_DISABLED_NODE, attempts);
                     wait(waitBetweenRetries);
                     attempts++;
                 } finally {

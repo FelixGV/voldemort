@@ -534,7 +534,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         heartBeatHookRunnable.stop();
         for (Closeable closeable: this.closeables) {
             try {
-                log.info("Closing" + closeable.toString());
+                log.info("Closing " + closeable.toString());
                 closeable.close();
             } catch (Exception e) {
                 log.error("Got an error while trying to close " + closeable.toString(), e);
