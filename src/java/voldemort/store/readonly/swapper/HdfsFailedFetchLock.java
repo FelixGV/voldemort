@@ -5,6 +5,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 import voldemort.VoldemortException;
@@ -65,7 +66,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     private final static String ADD_DISABLED_NODE = "add a disabled node in HDFS";
     private final static String IO_EXCEPTION = "of an IOException";
     private final static String ALREADY_EXISTS = "it is already acquired (most likely)";
-
+    private final static String UNKNOWN_REASONS = "of unknown reasons";
 
     private final static String PUSH_HA_LOCK_HDFS_TIMEOUT = "push.ha.lock.hdfs.timeout";
     private final static String PUSH_HA_LOCK_HDFS_RETRIES = "push.ha.lock.hdfs.retries";
@@ -115,7 +116,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     }
 
     private String exceptionMessage(String action) {
-        return "Failed to " + action + "after " + maxAttempts + " attempts.";
+        return "Failed to " + action + " after " + maxAttempts + " attempts.";
     }
 
     @Override
@@ -177,6 +178,10 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
                     // We attempt to rename the globally contended lock path to the the released path.
                     this.lockAcquired = !(this.fileSystem.rename(this.lockFile, releasedLockFile));
+
+                    if (this.lockAcquired) {
+                        logger.warn(logMessage(RELEASE_LOCK, UNKNOWN_REASONS, attempts));
+                    }
                 }  catch (IOException e) {
                     logger.error(logMessage(RELEASE_LOCK, IO_EXCEPTION, attempts), e);
                 }
@@ -241,10 +246,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                     String failedJobDir = clusterDir + "/" + nodeIdDir + "/" + storeName + "/" + storeVersion;
                     Path failedJobFile = new Path(failedJobDir, getUniqueFileName());
 
-                    outputStream = this.fileSystem.create(failedJobFile, false);
-                    props.storeFlattened(outputStream);
-                    outputStream.flush();
-                    outputStream.close();
+                    FileUtil.copy(this.fileSystem, this.lockFile, this.fileSystem, failedJobFile, false, true, new Configuration());
 
                     success = true;
                 }  catch (IOException e) {
