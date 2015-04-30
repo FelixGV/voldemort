@@ -60,6 +60,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     private final static String AFTER_RELEASE_DIR = "after-lock-release";
     private final static String NODE_ID_DIR_PREFIX = "node-";
 
+    private final static String INIT_DIRS = "initialize HDFS directories";
     private final static String ACQUIRE_LOCK = "acquire HDFS lock";
     private final static String RELEASE_LOCK = "release HDFS lock";
     private final static String GET_DISABLED_NODES = "retrieve disabled nodes from HDFS";
@@ -103,6 +104,29 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     public HdfsFailedFetchLock(Props props, String clusterId) throws Exception {
         super(props, clusterId);
         fileSystem = clusterPath.getFileSystem(new Configuration());
+        initDirs();
+    }
+
+    private void initDirs() throws Exception {
+        int attempts = 1;
+        boolean success = false;
+        while (this.lockAcquired && attempts <= maxAttempts) {
+            try {
+                success = this.fileSystem.mkdirs(new Path(afterLockDir));
+
+                if (!success) {
+                    logger.warn(logMessage(INIT_DIRS, UNKNOWN_REASONS, attempts));
+                }
+            }  catch (IOException e) {
+                handleIOException(e, INIT_DIRS, attempts);
+                wait(waitBetweenRetries);
+                attempts++;
+            }
+        }
+
+        if (!success) {
+            throw new VoldemortException(exceptionMessage(INIT_DIRS));
+        }
     }
 
     private String getUniqueFileName() {
