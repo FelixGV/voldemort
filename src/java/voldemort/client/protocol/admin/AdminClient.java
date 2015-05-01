@@ -4124,6 +4124,10 @@ public class AdminClient {
             }
 
         }
+
+        public void disableStore(Integer key, String storeName) {
+            // FIXME: Implement this.
+        }
     }
 
     public class QuotaManagementOperations {
