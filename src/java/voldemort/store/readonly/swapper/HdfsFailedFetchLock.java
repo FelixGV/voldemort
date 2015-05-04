@@ -274,7 +274,6 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
     @Override
     public void addDisabledNode(int nodeId,
-                                String details,
                                 String storeName,
                                 long storeVersion) throws Exception {
         if (!lockAcquired) {

@@ -4117,8 +4117,22 @@ public class AdminClient implements Closeable {
 
         }
 
-        public void disableStore(Integer key, String storeName) {
-            // FIXME: Implement this.
+        public void disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
+            VAdminProto.DisableStoreVersionRequest request = VAdminProto.DisableStoreVersionRequest.newBuilder()
+                                                                                                   .setStoreName(storeName)
+                                                                                                   .setPushVersion(storeVersion)
+                                                                                                   .setInfo(info)
+                                                                                                   .build();
+            VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
+                                                                                              .setDisableStoreVersion(request)
+                                                                                              .setType(VAdminProto.AdminRequestType.DISABLE_STORE_VERSION)
+                                                                                              .build();
+            VAdminProto.DisableStoreVersionResponse.Builder response = rpcOps.sendAndReceive(nodeId,
+                                                                                             adminRequest,
+                                                                                             VAdminProto.DisableStoreVersionResponse.newBuilder());
+            if(response.hasError()) {
+                helperOps.throwException(response.getError());
+            }
         }
     }
 
