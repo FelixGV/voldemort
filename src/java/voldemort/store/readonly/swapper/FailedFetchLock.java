@@ -21,7 +21,6 @@ public abstract class FailedFetchLock implements Closeable {
     public abstract void releaseLock() throws Exception;
     public abstract Set<Integer> getDisabledNodes() throws Exception;
     public abstract void addDisabledNode(int nodeId,
-                                         String details,
                                          String storeName,
                                          long storeVersion) throws Exception;
     @Override
