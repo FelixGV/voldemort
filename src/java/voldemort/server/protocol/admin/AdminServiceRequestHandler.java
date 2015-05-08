@@ -28,6 +28,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.protobuf.Message;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
@@ -56,6 +57,8 @@ import voldemort.server.storage.prunejob.VersionedPutPruneJob;
 import voldemort.server.storage.repairjob.RepairJob;
 import voldemort.store.ErrorCodeMapper;
 import voldemort.store.StorageEngine;
+import voldemort.store.Store;
+import voldemort.store.StoreCapabilityType;
 import voldemort.store.StoreDefinition;
 import voldemort.store.StoreDefinitionBuilder;
 import voldemort.store.StoreOperationFailureException;
@@ -66,6 +69,7 @@ import voldemort.store.readonly.FileFetcher;
 import voldemort.store.readonly.ReadOnlyStorageConfiguration;
 import voldemort.store.readonly.ReadOnlyStorageEngine;
 import voldemort.store.readonly.ReadOnlyUtils;
+import voldemort.store.readonly.StoreVersionManager;
 import voldemort.store.readonly.chunk.ChunkedFileSet;
 import voldemort.store.slop.SlopStorageEngine;
 import voldemort.store.stats.StreamingStats;
@@ -303,6 +307,13 @@ public class AdminServiceRequestHandler implements RequestHandler {
                 ProtoUtils.writeMessage(outputStream,
                                         handleReserveMemory(request.getReserveMemory()));
                 break;
+            case DISABLE_STORE_VERSION:
+                ProtoUtils.writeMessage(outputStream,
+                                        handleDisableStoreVersion(request.getDisableStoreVersion()));
+                break;
+            case GET_HA_SETTINGS:
+                ProtoUtils.writeMessage(outputStream,
+                                        handleGetHighAvailabilitySettings(request.getGetHaSettings()));
             default:
                 throw new VoldemortException("Unkown operation " + request.getType());
         }
@@ -1801,4 +1812,20 @@ public class AdminServiceRequestHandler implements RequestHandler {
         }
         return response.build();
     }
+
+    private Message handleDisableStoreVersion(VAdminProto.DisableStoreVersionRequest disableStoreVersion) {
+        StorageEngine storeToDisable = storeRepository.getStorageEngine(disableStoreVersion.getStoreName());
+
+        StoreVersionManager storeVersionManager = (StoreVersionManager)
+                storeToDisable.getCapability(StoreCapabilityType.DISABLE_STORE_VERSION);
+
+        storeVersionManager.disableStoreVersion(disableStoreVersion.getPushVersion());
+
+        return null;  //To change body of created methods use File | Settings | File Templates.
+    }
+
+    private Message handleGetHighAvailabilitySettings(VAdminProto.GetHighAvailabilitySettingsRequest getHaSettings) {
+        return null;  //To change body of created methods use File | Settings | File Templates.
+    }
+
 }
