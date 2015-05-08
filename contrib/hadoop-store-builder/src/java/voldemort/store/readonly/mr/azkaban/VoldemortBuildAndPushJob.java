@@ -746,7 +746,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             throw new RuntimeException("Owner field missing in store definition. "
                                        + "Please add \""
                                        + PUSH_STORE_OWNERS
-                                       + "\" with value being comma-separated list of LinkedIn email ids");
+                                       + "\" with value being a comma-separated list of email addresses.");
 
         }
         log.info("Could not find store " + storeName + " on Voldemort. Adding it to all nodes ");
@@ -754,7 +754,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             adminClientPerCluster.get(url).storeMgmtOps.addStore(newStoreDef);
         }
         catch(VoldemortException ve) {
-            throw new RuntimeException("Exception during adding store" + ve.getMessage());
+            throw new RuntimeException("Exception while adding store", ve);
         }
     }
 
