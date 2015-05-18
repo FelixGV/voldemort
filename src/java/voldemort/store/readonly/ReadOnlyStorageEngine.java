@@ -145,7 +145,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
     @Override
     public Object getCapability(StoreCapabilityType storeCapabilityType) {
         if (storeCapabilityType.equals(StoreCapabilityType.DISABLE_STORE_VERSION)) {
-            return null;
+            return storeVersionManager;
         } else {
             return super.getCapability(storeCapabilityType);
         }

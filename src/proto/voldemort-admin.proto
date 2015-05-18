@@ -416,6 +416,7 @@ message GetHighAvailabilitySettingsResponse {
   optional string cluster_id = 2;
   optional int32 max_node_failure = 3;
   optional string lock_path = 4;
+  optional string lock_implementation = 5;
 }
 
 message DisableStoreVersionRequest {
@@ -428,7 +429,6 @@ message DisableStoreVersionResponse {
   required bool disable_success = 1;
   optional bool disable_persistence_success = 2;
   optional string info = 3;
-  optional Error error = 4;
 }
 
 enum AdminRequestType {

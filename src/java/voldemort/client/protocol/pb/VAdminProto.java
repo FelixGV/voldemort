@@ -28746,6 +28746,13 @@ public final class VAdminProto {
     public boolean hasLockPath() { return hasLockPath; }
     public java.lang.String getLockPath() { return lockPath_; }
     
+    // optional string lock_implementation = 5;
+    public static final int LOCK_IMPLEMENTATION_FIELD_NUMBER = 5;
+    private boolean hasLockImplementation;
+    private java.lang.String lockImplementation_ = "";
+    public boolean hasLockImplementation() { return hasLockImplementation; }
+    public java.lang.String getLockImplementation() { return lockImplementation_; }
+    
     private void initFields() {
     }
     public final boolean isInitialized() {
@@ -28767,6 +28774,9 @@ public final class VAdminProto {
       }
       if (hasLockPath()) {
         output.writeString(4, getLockPath());
+      }
+      if (hasLockImplementation()) {
+        output.writeString(5, getLockImplementation());
       }
       getUnknownFields().writeTo(output);
     }
@@ -28792,6 +28802,10 @@ public final class VAdminProto {
       if (hasLockPath()) {
         size += com.google.protobuf.CodedOutputStream
           .computeStringSize(4, getLockPath());
+      }
+      if (hasLockImplementation()) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeStringSize(5, getLockImplementation());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -28963,6 +28977,9 @@ public final class VAdminProto {
         if (other.hasLockPath()) {
           setLockPath(other.getLockPath());
         }
+        if (other.hasLockImplementation()) {
+          setLockImplementation(other.getLockImplementation());
+        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -29002,6 +29019,10 @@ public final class VAdminProto {
             }
             case 34: {
               setLockPath(input.readString());
+              break;
+            }
+            case 42: {
+              setLockImplementation(input.readString());
               break;
             }
           }
@@ -29084,6 +29105,27 @@ public final class VAdminProto {
       public Builder clearLockPath() {
         result.hasLockPath = false;
         result.lockPath_ = getDefaultInstance().getLockPath();
+        return this;
+      }
+      
+      // optional string lock_implementation = 5;
+      public boolean hasLockImplementation() {
+        return result.hasLockImplementation();
+      }
+      public java.lang.String getLockImplementation() {
+        return result.getLockImplementation();
+      }
+      public Builder setLockImplementation(java.lang.String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  result.hasLockImplementation = true;
+        result.lockImplementation_ = value;
+        return this;
+      }
+      public Builder clearLockImplementation() {
+        result.hasLockImplementation = false;
+        result.lockImplementation_ = getDefaultInstance().getLockImplementation();
         return this;
       }
       
@@ -29517,21 +29559,10 @@ public final class VAdminProto {
     public boolean hasInfo() { return hasInfo; }
     public java.lang.String getInfo() { return info_; }
     
-    // optional .voldemort.Error error = 4;
-    public static final int ERROR_FIELD_NUMBER = 4;
-    private boolean hasError;
-    private voldemort.client.protocol.pb.VProto.Error error_;
-    public boolean hasError() { return hasError; }
-    public voldemort.client.protocol.pb.VProto.Error getError() { return error_; }
-    
     private void initFields() {
-      error_ = voldemort.client.protocol.pb.VProto.Error.getDefaultInstance();
     }
     public final boolean isInitialized() {
       if (!hasDisableSuccess) return false;
-      if (hasError()) {
-        if (!getError().isInitialized()) return false;
-      }
       return true;
     }
     
@@ -29546,9 +29577,6 @@ public final class VAdminProto {
       }
       if (hasInfo()) {
         output.writeString(3, getInfo());
-      }
-      if (hasError()) {
-        output.writeMessage(4, getError());
       }
       getUnknownFields().writeTo(output);
     }
@@ -29570,10 +29598,6 @@ public final class VAdminProto {
       if (hasInfo()) {
         size += com.google.protobuf.CodedOutputStream
           .computeStringSize(3, getInfo());
-      }
-      if (hasError()) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(4, getError());
       }
       size += getUnknownFields().getSerializedSize();
       memoizedSerializedSize = size;
@@ -29742,9 +29766,6 @@ public final class VAdminProto {
         if (other.hasInfo()) {
           setInfo(other.getInfo());
         }
-        if (other.hasError()) {
-          mergeError(other.getError());
-        }
         this.mergeUnknownFields(other.getUnknownFields());
         return this;
       }
@@ -29780,15 +29801,6 @@ public final class VAdminProto {
             }
             case 26: {
               setInfo(input.readString());
-              break;
-            }
-            case 34: {
-              voldemort.client.protocol.pb.VProto.Error.Builder subBuilder = voldemort.client.protocol.pb.VProto.Error.newBuilder();
-              if (hasError()) {
-                subBuilder.mergeFrom(getError());
-              }
-              input.readMessage(subBuilder, extensionRegistry);
-              setError(subBuilder.buildPartial());
               break;
             }
           }
@@ -29850,43 +29862,6 @@ public final class VAdminProto {
       public Builder clearInfo() {
         result.hasInfo = false;
         result.info_ = getDefaultInstance().getInfo();
-        return this;
-      }
-      
-      // optional .voldemort.Error error = 4;
-      public boolean hasError() {
-        return result.hasError();
-      }
-      public voldemort.client.protocol.pb.VProto.Error getError() {
-        return result.getError();
-      }
-      public Builder setError(voldemort.client.protocol.pb.VProto.Error value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        result.hasError = true;
-        result.error_ = value;
-        return this;
-      }
-      public Builder setError(voldemort.client.protocol.pb.VProto.Error.Builder builderForValue) {
-        result.hasError = true;
-        result.error_ = builderForValue.build();
-        return this;
-      }
-      public Builder mergeError(voldemort.client.protocol.pb.VProto.Error value) {
-        if (result.hasError() &&
-            result.error_ != voldemort.client.protocol.pb.VProto.Error.getDefaultInstance()) {
-          result.error_ =
-            voldemort.client.protocol.pb.VProto.Error.newBuilder(result.error_).mergeFrom(value).buildPartial();
-        } else {
-          result.error_ = value;
-        }
-        result.hasError = true;
-        return this;
-      }
-      public Builder clearError() {
-        result.hasError = false;
-        result.error_ = voldemort.client.protocol.pb.VProto.Error.getDefaultInstance();
         return this;
       }
       
@@ -33452,109 +33427,109 @@ public final class VAdminProto {
       "ore_name\030\001 \002(\t\022\022\n\nsize_in_mb\030\002 \002(\003\"8\n\025Re" +
       "serveMemoryResponse\022\037\n\005error\030\001 \001(\0132\020.vol" +
       "demort.Error\"$\n\"GetHighAvailabilitySetti" +
-      "ngsRequest\"w\n#GetHighAvailabilitySetting" +
-      "sResponse\022\017\n\007enabled\030\001 \002(\010\022\022\n\ncluster_id",
-      "\030\002 \001(\t\022\030\n\020max_node_failure\030\003 \001(\005\022\021\n\tlock" +
-      "_path\030\004 \001(\t\"T\n\032DisableStoreVersionReques" +
-      "t\022\022\n\nstore_name\030\001 \002(\t\022\024\n\014push_version\030\002 " +
-      "\002(\003\022\014\n\004info\030\003 \001(\t\"\212\001\n\033DisableStoreVersio" +
-      "nResponse\022\027\n\017disable_success\030\001 \002(\010\022#\n\033di" +
-      "sable_persistence_success\030\002 \001(\010\022\014\n\004info\030" +
-      "\003 \001(\t\022\037\n\005error\030\004 \001(\0132\020.voldemort.Error\"\210" +
-      "\025\n\025VoldemortAdminRequest\022)\n\004type\030\001 \002(\0162\033" +
-      ".voldemort.AdminRequestType\0223\n\014get_metad" +
-      "ata\030\002 \001(\0132\035.voldemort.GetMetadataRequest",
-      "\0229\n\017update_metadata\030\003 \001(\0132 .voldemort.Up" +
-      "dateMetadataRequest\022J\n\030update_partition_" +
-      "entries\030\004 \001(\0132(.voldemort.UpdatePartitio" +
-      "nEntriesRequest\022H\n\027fetch_partition_entri" +
-      "es\030\005 \001(\0132\'.voldemort.FetchPartitionEntri" +
-      "esRequest\022J\n\030delete_partition_entries\030\006 " +
-      "\001(\0132(.voldemort.DeletePartitionEntriesRe" +
-      "quest\022K\n\031initiate_fetch_and_update\030\007 \001(\013" +
-      "2(.voldemort.InitiateFetchAndUpdateReque" +
-      "st\022F\n\026async_operation_status\030\010 \001(\0132&.vol",
-      "demort.AsyncOperationStatusRequest\022H\n\027in" +
-      "itiate_rebalance_node\030\t \001(\0132\'.voldemort." +
-      "InitiateRebalanceNodeRequest\022B\n\024async_op" +
-      "eration_stop\030\n \001(\0132$.voldemort.AsyncOper" +
-      "ationStopRequest\022B\n\024async_operation_list" +
-      "\030\013 \001(\0132$.voldemort.AsyncOperationListReq" +
-      "uest\022;\n\020truncate_entries\030\014 \001(\0132!.voldemo" +
-      "rt.TruncateEntriesRequest\022-\n\tadd_store\030\r" +
-      " \001(\0132\032.voldemort.AddStoreRequest\0223\n\014dele" +
-      "te_store\030\016 \001(\0132\035.voldemort.DeleteStoreRe",
-      "quest\0221\n\013fetch_store\030\017 \001(\0132\034.voldemort.F" +
-      "etchStoreRequest\022/\n\nswap_store\030\020 \001(\0132\033.v" +
-      "oldemort.SwapStoreRequest\0227\n\016rollback_st" +
-      "ore\030\021 \001(\0132\037.voldemort.RollbackStoreReque" +
-      "st\022D\n\026get_ro_max_version_dir\030\022 \001(\0132$.vol" +
-      "demort.GetROMaxVersionDirRequest\022L\n\032get_" +
-      "ro_current_version_dir\030\023 \001(\0132(.voldemort" +
-      ".GetROCurrentVersionDirRequest\022D\n\025fetch_" +
-      "partition_files\030\024 \001(\0132%.voldemort.FetchP" +
-      "artitionFilesRequest\022@\n\023update_slop_entr",
-      "ies\030\026 \001(\0132#.voldemort.UpdateSlopEntriesR" +
-      "equest\022>\n\022failed_fetch_store\030\030 \001(\0132\".vol" +
-      "demort.FailedFetchStoreRequest\022C\n\025get_ro" +
-      "_storage_format\030\031 \001(\0132$.voldemort.GetROS" +
-      "torageFormatRequest\022F\n\026rebalance_state_c" +
-      "hange\030\032 \001(\0132&.voldemort.RebalanceStateCh" +
-      "angeRequest\022/\n\nrepair_job\030\033 \001(\0132\033.voldem" +
-      "ort.RepairJobRequest\022Q\n\034delete_store_reb" +
-      "alance_state\030\035 \001(\0132+.voldemort.DeleteSto" +
-      "reRebalanceStateRequest\0225\n\rnative_backup",
-      "\030\036 \001(\0132\036.voldemort.NativeBackupRequest\0227" +
-      "\n\016reserve_memory\030\037 \001(\0132\037.voldemort.Reser" +
-      "veMemoryRequest\022-\n\tprune_job\030  \001(\0132\032.vol" +
-      "demort.PruneJobRequest\0226\n\016slop_purge_job" +
-      "\030! \001(\0132\036.voldemort.SlopPurgeJobRequest\022B" +
-      "\n\024update_metadata_pair\030\" \001(\0132$.voldemort" +
-      ".UpdateMetadataPairRequest\022C\n\030update_sto" +
-      "re_definitions\030# \001(\0132!.voldemort.UpdateS" +
-      "toreDefinitions\022<\n\021set_offline_state\030$ \001" +
-      "(\0132!.voldemort.SetOfflineStateRequest\022H\n",
-      "\030get_ro_storage_file_list\030% \001(\0132&.voldem" +
-      "ort.GetROStorageFileListRequest\022Y\n\035get_r" +
-      "o_compression_codec_list\030& \001(\01322.voldemo" +
-      "rt.GetROStorageCompressionCodecListReque" +
-      "st\022@\n\023list_scheduled_jobs\030\' \001(\0132#.voldem" +
-      "ort.ListScheduledJobsRequest\022I\n\030get_sche" +
-      "duled_job_status\030( \001(\0132\'.voldemort.GetSc" +
-      "heduledJobStatusRequest\022>\n\022stop_schedule" +
-      "d_job\030) \001(\0132\".voldemort.StopScheduledJob" +
-      "Request\022B\n\024enable_scheduled_job\030* \001(\0132$.",
-      "voldemort.EnableScheduledJobRequest\022F\n\017g" +
-      "et_ha_settings\030+ \001(\0132-.voldemort.GetHigh" +
-      "AvailabilitySettingsRequest\022D\n\025disable_s" +
-      "tore_version\030, \001(\0132%.voldemort.DisableSt" +
-      "oreVersionRequest*\356\007\n\020AdminRequestType\022\020" +
-      "\n\014GET_METADATA\020\000\022\023\n\017UPDATE_METADATA\020\001\022\034\n" +
-      "\030UPDATE_PARTITION_ENTRIES\020\002\022\033\n\027FETCH_PAR" +
-      "TITION_ENTRIES\020\003\022\034\n\030DELETE_PARTITION_ENT" +
-      "RIES\020\004\022\035\n\031INITIATE_FETCH_AND_UPDATE\020\005\022\032\n" +
-      "\026ASYNC_OPERATION_STATUS\020\006\022\033\n\027INITIATE_RE",
-      "BALANCE_NODE\020\007\022\030\n\024ASYNC_OPERATION_STOP\020\010" +
-      "\022\030\n\024ASYNC_OPERATION_LIST\020\t\022\024\n\020TRUNCATE_E" +
-      "NTRIES\020\n\022\r\n\tADD_STORE\020\013\022\020\n\014DELETE_STORE\020" +
-      "\014\022\017\n\013FETCH_STORE\020\r\022\016\n\nSWAP_STORE\020\016\022\022\n\016RO" +
-      "LLBACK_STORE\020\017\022\032\n\026GET_RO_MAX_VERSION_DIR" +
-      "\020\020\022\036\n\032GET_RO_CURRENT_VERSION_DIR\020\021\022\031\n\025FE" +
-      "TCH_PARTITION_FILES\020\022\022\027\n\023UPDATE_SLOP_ENT" +
-      "RIES\020\024\022\026\n\022FAILED_FETCH_STORE\020\026\022\031\n\025GET_RO" +
-      "_STORAGE_FORMAT\020\027\022\032\n\026REBALANCE_STATE_CHA" +
-      "NGE\020\030\022\016\n\nREPAIR_JOB\020\031\022 \n\034DELETE_STORE_RE",
-      "BALANCE_STATE\020\033\022\021\n\rNATIVE_BACKUP\020\034\022\022\n\016RE" +
-      "SERVE_MEMORY\020\035\022\r\n\tPRUNE_JOB\020\036\022\022\n\016SLOP_PU" +
-      "RGE_JOB\020\037\022\030\n\024UPDATE_METADATA_PAIR\020 \022\034\n\030U" +
-      "PDATE_STORE_DEFINITIONS\020!\022\025\n\021SET_OFFLINE" +
-      "_STATE\020\"\022\034\n\030GET_RO_STORAGE_FILE_LIST\020#\022!" +
-      "\n\035GET_RO_COMPRESSION_CODEC_LIST\020$\022\027\n\023LIS" +
-      "T_SCHEDULED_JOBS\020%\022\034\n\030GET_SCHEDULED_JOB_" +
-      "STATUS\020&\022\026\n\022STOP_SCHEDULED_JOB\020\'\022\030\n\024ENAB" +
-      "LE_SCHEDULED_JOB\020(\022\023\n\017GET_HA_SETTINGS\020)\022" +
-      "\031\n\025DISABLE_STORE_VERSION\020*B-\n\034voldemort.",
-      "client.protocol.pbB\013VAdminProtoH\001"
+      "ngsRequest\"\224\001\n#GetHighAvailabilitySettin" +
+      "gsResponse\022\017\n\007enabled\030\001 \002(\010\022\022\n\ncluster_i",
+      "d\030\002 \001(\t\022\030\n\020max_node_failure\030\003 \001(\005\022\021\n\tloc" +
+      "k_path\030\004 \001(\t\022\033\n\023lock_implementation\030\005 \001(" +
+      "\t\"T\n\032DisableStoreVersionRequest\022\022\n\nstore" +
+      "_name\030\001 \002(\t\022\024\n\014push_version\030\002 \002(\003\022\014\n\004inf" +
+      "o\030\003 \001(\t\"i\n\033DisableStoreVersionResponse\022\027" +
+      "\n\017disable_success\030\001 \002(\010\022#\n\033disable_persi" +
+      "stence_success\030\002 \001(\010\022\014\n\004info\030\003 \001(\t\"\210\025\n\025V" +
+      "oldemortAdminRequest\022)\n\004type\030\001 \002(\0162\033.vol" +
+      "demort.AdminRequestType\0223\n\014get_metadata\030" +
+      "\002 \001(\0132\035.voldemort.GetMetadataRequest\0229\n\017",
+      "update_metadata\030\003 \001(\0132 .voldemort.Update" +
+      "MetadataRequest\022J\n\030update_partition_entr" +
+      "ies\030\004 \001(\0132(.voldemort.UpdatePartitionEnt" +
+      "riesRequest\022H\n\027fetch_partition_entries\030\005" +
+      " \001(\0132\'.voldemort.FetchPartitionEntriesRe" +
+      "quest\022J\n\030delete_partition_entries\030\006 \001(\0132" +
+      "(.voldemort.DeletePartitionEntriesReques" +
+      "t\022K\n\031initiate_fetch_and_update\030\007 \001(\0132(.v" +
+      "oldemort.InitiateFetchAndUpdateRequest\022F" +
+      "\n\026async_operation_status\030\010 \001(\0132&.voldemo",
+      "rt.AsyncOperationStatusRequest\022H\n\027initia" +
+      "te_rebalance_node\030\t \001(\0132\'.voldemort.Init" +
+      "iateRebalanceNodeRequest\022B\n\024async_operat" +
+      "ion_stop\030\n \001(\0132$.voldemort.AsyncOperatio" +
+      "nStopRequest\022B\n\024async_operation_list\030\013 \001" +
+      "(\0132$.voldemort.AsyncOperationListRequest" +
+      "\022;\n\020truncate_entries\030\014 \001(\0132!.voldemort.T" +
+      "runcateEntriesRequest\022-\n\tadd_store\030\r \001(\013" +
+      "2\032.voldemort.AddStoreRequest\0223\n\014delete_s" +
+      "tore\030\016 \001(\0132\035.voldemort.DeleteStoreReques",
+      "t\0221\n\013fetch_store\030\017 \001(\0132\034.voldemort.Fetch" +
+      "StoreRequest\022/\n\nswap_store\030\020 \001(\0132\033.volde" +
+      "mort.SwapStoreRequest\0227\n\016rollback_store\030" +
+      "\021 \001(\0132\037.voldemort.RollbackStoreRequest\022D" +
+      "\n\026get_ro_max_version_dir\030\022 \001(\0132$.voldemo" +
+      "rt.GetROMaxVersionDirRequest\022L\n\032get_ro_c" +
+      "urrent_version_dir\030\023 \001(\0132(.voldemort.Get" +
+      "ROCurrentVersionDirRequest\022D\n\025fetch_part" +
+      "ition_files\030\024 \001(\0132%.voldemort.FetchParti" +
+      "tionFilesRequest\022@\n\023update_slop_entries\030",
+      "\026 \001(\0132#.voldemort.UpdateSlopEntriesReque" +
+      "st\022>\n\022failed_fetch_store\030\030 \001(\0132\".voldemo" +
+      "rt.FailedFetchStoreRequest\022C\n\025get_ro_sto" +
+      "rage_format\030\031 \001(\0132$.voldemort.GetROStora" +
+      "geFormatRequest\022F\n\026rebalance_state_chang" +
+      "e\030\032 \001(\0132&.voldemort.RebalanceStateChange" +
+      "Request\022/\n\nrepair_job\030\033 \001(\0132\033.voldemort." +
+      "RepairJobRequest\022Q\n\034delete_store_rebalan" +
+      "ce_state\030\035 \001(\0132+.voldemort.DeleteStoreRe" +
+      "balanceStateRequest\0225\n\rnative_backup\030\036 \001",
+      "(\0132\036.voldemort.NativeBackupRequest\0227\n\016re" +
+      "serve_memory\030\037 \001(\0132\037.voldemort.ReserveMe" +
+      "moryRequest\022-\n\tprune_job\030  \001(\0132\032.voldemo" +
+      "rt.PruneJobRequest\0226\n\016slop_purge_job\030! \001" +
+      "(\0132\036.voldemort.SlopPurgeJobRequest\022B\n\024up" +
+      "date_metadata_pair\030\" \001(\0132$.voldemort.Upd" +
+      "ateMetadataPairRequest\022C\n\030update_store_d" +
+      "efinitions\030# \001(\0132!.voldemort.UpdateStore" +
+      "Definitions\022<\n\021set_offline_state\030$ \001(\0132!" +
+      ".voldemort.SetOfflineStateRequest\022H\n\030get",
+      "_ro_storage_file_list\030% \001(\0132&.voldemort." +
+      "GetROStorageFileListRequest\022Y\n\035get_ro_co" +
+      "mpression_codec_list\030& \001(\01322.voldemort.G" +
+      "etROStorageCompressionCodecListRequest\022@" +
+      "\n\023list_scheduled_jobs\030\' \001(\0132#.voldemort." +
+      "ListScheduledJobsRequest\022I\n\030get_schedule" +
+      "d_job_status\030( \001(\0132\'.voldemort.GetSchedu" +
+      "ledJobStatusRequest\022>\n\022stop_scheduled_jo" +
+      "b\030) \001(\0132\".voldemort.StopScheduledJobRequ" +
+      "est\022B\n\024enable_scheduled_job\030* \001(\0132$.vold",
+      "emort.EnableScheduledJobRequest\022F\n\017get_h" +
+      "a_settings\030+ \001(\0132-.voldemort.GetHighAvai" +
+      "labilitySettingsRequest\022D\n\025disable_store" +
+      "_version\030, \001(\0132%.voldemort.DisableStoreV" +
+      "ersionRequest*\356\007\n\020AdminRequestType\022\020\n\014GE" +
+      "T_METADATA\020\000\022\023\n\017UPDATE_METADATA\020\001\022\034\n\030UPD" +
+      "ATE_PARTITION_ENTRIES\020\002\022\033\n\027FETCH_PARTITI" +
+      "ON_ENTRIES\020\003\022\034\n\030DELETE_PARTITION_ENTRIES" +
+      "\020\004\022\035\n\031INITIATE_FETCH_AND_UPDATE\020\005\022\032\n\026ASY" +
+      "NC_OPERATION_STATUS\020\006\022\033\n\027INITIATE_REBALA",
+      "NCE_NODE\020\007\022\030\n\024ASYNC_OPERATION_STOP\020\010\022\030\n\024" +
+      "ASYNC_OPERATION_LIST\020\t\022\024\n\020TRUNCATE_ENTRI" +
+      "ES\020\n\022\r\n\tADD_STORE\020\013\022\020\n\014DELETE_STORE\020\014\022\017\n" +
+      "\013FETCH_STORE\020\r\022\016\n\nSWAP_STORE\020\016\022\022\n\016ROLLBA" +
+      "CK_STORE\020\017\022\032\n\026GET_RO_MAX_VERSION_DIR\020\020\022\036" +
+      "\n\032GET_RO_CURRENT_VERSION_DIR\020\021\022\031\n\025FETCH_" +
+      "PARTITION_FILES\020\022\022\027\n\023UPDATE_SLOP_ENTRIES" +
+      "\020\024\022\026\n\022FAILED_FETCH_STORE\020\026\022\031\n\025GET_RO_STO" +
+      "RAGE_FORMAT\020\027\022\032\n\026REBALANCE_STATE_CHANGE\020" +
+      "\030\022\016\n\nREPAIR_JOB\020\031\022 \n\034DELETE_STORE_REBALA",
+      "NCE_STATE\020\033\022\021\n\rNATIVE_BACKUP\020\034\022\022\n\016RESERV" +
+      "E_MEMORY\020\035\022\r\n\tPRUNE_JOB\020\036\022\022\n\016SLOP_PURGE_" +
+      "JOB\020\037\022\030\n\024UPDATE_METADATA_PAIR\020 \022\034\n\030UPDAT" +
+      "E_STORE_DEFINITIONS\020!\022\025\n\021SET_OFFLINE_STA" +
+      "TE\020\"\022\034\n\030GET_RO_STORAGE_FILE_LIST\020#\022!\n\035GE" +
+      "T_RO_COMPRESSION_CODEC_LIST\020$\022\027\n\023LIST_SC" +
+      "HEDULED_JOBS\020%\022\034\n\030GET_SCHEDULED_JOB_STAT" +
+      "US\020&\022\026\n\022STOP_SCHEDULED_JOB\020\'\022\030\n\024ENABLE_S" +
+      "CHEDULED_JOB\020(\022\023\n\017GET_HA_SETTINGS\020)\022\031\n\025D" +
+      "ISABLE_STORE_VERSION\020*B-\n\034voldemort.clie",
+      "nt.protocol.pbB\013VAdminProtoH\001"
     };
     com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner assigner =
       new com.google.protobuf.Descriptors.FileDescriptor.InternalDescriptorAssigner() {
@@ -34214,7 +34189,7 @@ public final class VAdminProto {
           internal_static_voldemort_GetHighAvailabilitySettingsResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_voldemort_GetHighAvailabilitySettingsResponse_descriptor,
-              new java.lang.String[] { "Enabled", "ClusterId", "MaxNodeFailure", "LockPath", },
+              new java.lang.String[] { "Enabled", "ClusterId", "MaxNodeFailure", "LockPath", "LockImplementation", },
               voldemort.client.protocol.pb.VAdminProto.GetHighAvailabilitySettingsResponse.class,
               voldemort.client.protocol.pb.VAdminProto.GetHighAvailabilitySettingsResponse.Builder.class);
           internal_static_voldemort_DisableStoreVersionRequest_descriptor =
@@ -34230,7 +34205,7 @@ public final class VAdminProto {
           internal_static_voldemort_DisableStoreVersionResponse_fieldAccessorTable = new
             com.google.protobuf.GeneratedMessage.FieldAccessorTable(
               internal_static_voldemort_DisableStoreVersionResponse_descriptor,
-              new java.lang.String[] { "DisableSuccess", "DisablePersistenceSuccess", "Info", "Error", },
+              new java.lang.String[] { "DisableSuccess", "DisablePersistenceSuccess", "Info", },
               voldemort.client.protocol.pb.VAdminProto.DisableStoreVersionResponse.class,
               voldemort.client.protocol.pb.VAdminProto.DisableStoreVersionResponse.Builder.class);
           internal_static_voldemort_VoldemortAdminRequest_descriptor =

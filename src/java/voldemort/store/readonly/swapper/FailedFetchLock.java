@@ -11,6 +11,8 @@ import java.util.Set;
  * Component to make sure we can do some operations synchronously across many processes.
  */
 public abstract class FailedFetchLock implements Closeable {
+    public final static String PUSH_HA_LOCK_PATH = "push.ha.lock.path";
+
     protected final Props props;
     protected final String clusterId;
     public FailedFetchLock(Props props, String clusterUrl) {
