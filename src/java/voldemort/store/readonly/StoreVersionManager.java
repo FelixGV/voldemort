@@ -76,7 +76,9 @@ public class StoreVersionManager {
     }
 
     /**
-     * @param version which
+     * Tells whether a version is enabled or disabled.
+     *
+     * @param version which we want to know the status of.
      * @return true if the requested version is enabled,
      *         false if the requested version is disabled,
      *         null if the requested version does not exist
@@ -85,6 +87,13 @@ public class StoreVersionManager {
         return versionToEnabledMap.get(version);
     }
 
+    /**
+     * Tells whether the current version is enabled or disabled.
+     *
+     * @return true if the requested version is enabled,
+     *         false if the requested version is disabled,
+     *         null if the requested version does not exist
+     */
     public Boolean isCurrentVersionEnabled() {
         return isStoreVersionEnabled(currentVersion);
     }

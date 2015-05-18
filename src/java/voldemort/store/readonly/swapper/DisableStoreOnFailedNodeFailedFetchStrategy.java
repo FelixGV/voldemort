@@ -12,13 +12,16 @@ import java.util.Set;
 public class DisableStoreOnFailedNodeFailedFetchStrategy extends FailedFetchStrategy {
     private final FailedFetchLock distributedLock;
     private final Integer maxNodeFailure;
+    private final String extraInfo;
 
     public DisableStoreOnFailedNodeFailedFetchStrategy(AdminClient adminClient,
                                                        FailedFetchLock distributedLock,
-                                                       Integer maxNodeFailure) {
+                                                       Integer maxNodeFailure,
+                                                       String extraInfo) {
         super(adminClient);
         this.distributedLock = distributedLock;
         this.maxNodeFailure = maxNodeFailure;
+        this.extraInfo = extraInfo;
     }
 
     @Override
@@ -63,8 +66,6 @@ public class DisableStoreOnFailedNodeFailedFetchStrategy extends FailedFetchStra
                 for (Integer nodeId: nodesFailedInThisRun) {
                     logger.warn("Will disable store '" + storeName + "' on node " + nodeId);
                     distributedLock.addDisabledNode(nodeId, storeName, pushVersion);
-                    // TODO: Decide if we want to pass extra info to the server (job ID, etc.)
-                    String extraInfo = "";
                     adminClient.readonlyOps.disableStoreVersion(nodeId, storeName, pushVersion, extraInfo);
                 }
 

@@ -57,6 +57,8 @@ import voldemort.server.storage.StorageService;
 import voldemort.server.storage.prunejob.VersionedPutPruneJob;
 import voldemort.server.storage.repairjob.RepairJob;
 import voldemort.store.ErrorCodeMapper;
+import voldemort.store.NoSuchCapabilityException;
+import voldemort.store.PersistenceFailureException;
 import voldemort.store.StorageEngine;
 import voldemort.store.Store;
 import voldemort.store.StoreCapabilityType;
@@ -1903,18 +1905,63 @@ public class AdminServiceRequestHandler implements RequestHandler {
     }
 
     private Message handleDisableStoreVersion(VAdminProto.DisableStoreVersionRequest disableStoreVersion) {
-        StorageEngine storeToDisable = storeRepository.getStorageEngine(disableStoreVersion.getStoreName());
+        logger.info("Received DisableStoreVersionRequest: " + disableStoreVersion.toString());
 
-        StoreVersionManager storeVersionManager = (StoreVersionManager)
-                storeToDisable.getCapability(StoreCapabilityType.DISABLE_STORE_VERSION);
+        VAdminProto.DisableStoreVersionResponse.Builder response = VAdminProto.DisableStoreVersionResponse.newBuilder();
 
-        storeVersionManager.disableStoreVersion(disableStoreVersion.getPushVersion());
+        String storeName = disableStoreVersion.getStoreName();
+        Long version = disableStoreVersion.getPushVersion();
 
-        return null;  //To change body of created methods use File | Settings | File Templates.
+        try {
+            StorageEngine storeToDisable = storeRepository.getStorageEngine(storeName);
+
+            StoreVersionManager storeVersionManager = (StoreVersionManager)
+                    storeToDisable.getCapability(StoreCapabilityType.DISABLE_STORE_VERSION);
+
+            storeVersionManager.disableStoreVersion(version);
+            response.setDisableSuccess(true)
+                    .setDisablePersistenceSuccess(true)
+                    .setInfo("The store '" + storeName + "' version " + version + " was successfully disabled.");
+        } catch (PersistenceFailureException e) {
+            response.setDisableSuccess(true)
+                    .setDisablePersistenceSuccess(false)
+                    .setInfo("The store '" + storeName + "' version " + version + " was disabled" +
+                            "but the change could not be persisted and will thus remain in effect only " +
+                            "until the next server restart. This is likely caused by the IO subsystem " +
+                            "becoming read-only.");
+        } catch (NoSuchCapabilityException e) {
+            response.setDisableSuccess(false)
+                    .setInfo("The store '" + storeName + "' does not support disabling versions!");
+        } catch (NullPointerException e) {
+            response.setDisableSuccess(false)
+                    .setInfo("The store '" + storeName + "' does not exist!");
+        } catch (Exception e) {
+            logger.error("Got an unexpected exception while trying to disable store '" +
+                    storeName + "' version " + version + ".", e);
+            response.setDisableSuccess(false)
+                    .setInfo("The store '" + storeName + "' version " + version +
+                            " was not disabled because of an unexpected exception.");
+        }
+
+        logger.info("handleDisableStoreVersion returning response: " + response.getInfo());
+
+        return response.build();
     }
 
     private Message handleGetHighAvailabilitySettings(VAdminProto.GetHighAvailabilitySettingsRequest getHaSettings) {
-        return null;  //To change body of created methods use File | Settings | File Templates.
+        VAdminProto.GetHighAvailabilitySettingsResponse.Builder response =
+                VAdminProto.GetHighAvailabilitySettingsResponse.newBuilder();
+
+        boolean highAvailabilityPushEnabled = voldemortConfig.isHighAvailabilityPushEnabled();
+        response.setEnabled(highAvailabilityPushEnabled);
+        if (highAvailabilityPushEnabled) {
+            response.setClusterId(voldemortConfig.getHighAvailabilityPushClusterId());
+            response.setMaxNodeFailure(voldemortConfig.getHighAvailabilityPushMaxNodeFailures());
+            response.setLockPath(voldemortConfig.getHighAvailabilityPushLockPath());
+            response.setLockImplementation(voldemortConfig.getHighAvailabilityPushLockImplementation());
+        }
+
+        return response.build();
     }
 
 }

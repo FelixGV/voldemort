@@ -43,6 +43,7 @@ import voldemort.VoldemortException;
 import voldemort.client.ClientConfig;
 import voldemort.client.protocol.admin.AdminClient;
 import voldemort.client.protocol.admin.AdminClientConfig;
+import voldemort.client.protocol.pb.VAdminProto;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.serialization.DefaultSerializerFactory;
@@ -101,7 +102,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     private final int heartBeatHookIntervalTime;
     private final HeartBeatHookRunnable heartBeatHookRunnable;
     private final boolean pushHighAvailability;
-    private final List<String> pushHighAvailabilityClusterWhiteList;
     private final List<Closeable> closeables = Lists.newArrayList();
 
     // CONFIG NAME CONSTANTS
@@ -137,9 +137,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String PUSH_FORCE_SCHEMA_KEY = "push.force.schema.key";
     public final static String PUSH_FORCE_SCHEMA_VALUE = "push.force.schema.value";
     public final static String PUSH_HA_ENABLED = "push.ha.enabled";
-    public final static String PUSH_HA_CLUSTER_WHITELIST = "push.ha.cluster.whitelist";
-    public final static String PUSH_HA_MAX_NODE_FAILURE = "push.ha.max.node.failure";
-    public final static String PUSH_HA_LOCK_IMPLEMENTATION = "push.ha.lock.implementation";
     // others.optional
     public final static String KEY_SELECTION = "key.selection";
     public final static String VALUE_SELECTION = "value.selection";
@@ -160,9 +157,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String MIN_NUMBER_OF_RECORDS = "min.number.of.records";
     public final static String REDUCER_OUTPUT_COMPRESS_CODEC = "reducer.output.compress.codec";
     public static final String REDUCER_OUTPUT_COMPRESS = "reducer.output.compress";
-
-    // provided
-    public final static String AZKABAN_LINK_EXECUTION_URL = "azkaban.link.execution.url";
 
     public VoldemortBuildAndPushJob(String name, azkaban.utils.Props azkabanProps) {
         super(name, Logger.getLogger(name));
@@ -227,15 +221,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         minNumberOfRecords = props.getLong(MIN_NUMBER_OF_RECORDS, 1);
 
-        pushHighAvailabilityClusterWhiteList = props.getList(PUSH_HA_CLUSTER_WHITELIST, new ArrayList<String>());
-        pushHighAvailability = props.getBoolean(PUSH_HA_ENABLED, false);
-        if (pushHighAvailability) {
-            for (String clusterUrl: clusterURLs) {
-                if (!pushHighAvailabilityClusterWhiteList.contains(clusterUrl)) {
-                    log.warn("This cluster is not whitelisted for PUSH HA: " + pushHighAvailability);
-                }
-            }
-        }
+        // By default, Push HA will be enabled if the server says so.
+        // If the job sets Push HA to false, then it will be disabled, no matter what the server asks for.
+        pushHighAvailability = props.getBoolean(PUSH_HA_ENABLED, true);
 
         // Initializing hooks
         heartBeatHookIntervalTime = props.getInt(HEARTBEAT_HOOK_INTERVAL_MS, 60000);
@@ -819,31 +807,52 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         List<FailedFetchStrategy> failedFetchStrategyList = Lists.newArrayList();
 
-        boolean rollback = props.getBoolean(PUSH_ROLLBACK, true);
-        boolean disableStoreOnFailedNodeForThisCluster =
-                pushHighAvailability && pushHighAvailabilityClusterWhiteList.contains(url);
+        if (pushHighAvailability) {
+            try {
+                VAdminProto.GetHighAvailabilitySettingsResponse serverSettings =
+                        adminClientPerCluster.get(url).readonlyOps.getHighAvailabilitySettings(nodeId);
 
-        if (disableStoreOnFailedNodeForThisCluster) {
-            // TODO: This could instead interrogate the cluster
-            // to find out its minimum replication factor across all stores...
-            int maxNodeFailure = props.getInt(PUSH_HA_MAX_NODE_FAILURE, 1);
-            Class<? extends FailedFetchLock> failedFetchLockClass = (Class<? extends FailedFetchLock>)
-                    props.getClass(PUSH_HA_LOCK_IMPLEMENTATION, HdfsFailedFetchLock.class);
-            Object[] failedFetchLockParameters = new Object[]{props, url};
-            FailedFetchLock failedFetchLock = ReflectUtils.callConstructor(failedFetchLockClass, failedFetchLockParameters);
-            failedFetchStrategyList.add(
-                    new DisableStoreOnFailedNodeFailedFetchStrategy(
-                            adminClientPerCluster.get(url), failedFetchLock, maxNodeFailure));
-            closeables.add(failedFetchLock);
-            log.info("Beginning push with pushHighAvailability enabled for cluster: " + url);
-        } else if (pushHighAvailability && !disableStoreOnFailedNodeForThisCluster) {
-            log.warn("Beginning push with pushHighAvailability DISABLED because the cluster is not whitelisted: " + url);
+                if (serverSettings.getEnabled()) {
+                    int maxNodeFailure = serverSettings.getMaxNodeFailure();
+                    try {
+                        Class<? extends FailedFetchLock> failedFetchLockClass =
+                                (Class<? extends FailedFetchLock>) Class.forName(serverSettings.getLockImplementation());
+                        Props propsForCluster = new Props(props);
+                        propsForCluster.put(FailedFetchLock.PUSH_HA_LOCK_PATH, serverSettings.getLockPath());
+                        Object[] failedFetchLockParameters = new Object[]{props, serverSettings.getClusterId()};
+                        FailedFetchLock failedFetchLock =
+                                ReflectUtils.callConstructor(failedFetchLockClass, failedFetchLockParameters);
+                        failedFetchStrategyList.add(
+                                new DisableStoreOnFailedNodeFailedFetchStrategy(
+                                        adminClientPerCluster.get(url),
+                                        failedFetchLock,
+                                        maxNodeFailure,
+                                        propsForCluster.toString()));
+                        closeables.add(failedFetchLock);
+                        log.info("pushHighAvailability is enabled for cluster URL: " + url +
+                                " with cluster ID: " + serverSettings.getClusterId());
+                    } catch (ClassNotFoundException e) {
+                        log.error("Failed to find requested FailedFetchLock implementation, so " +
+                                "pushHighAvailability will be DISABLED on cluster: " + url, e);
+                    }
+                } else {
+                    log.warn("The server requested pushHighAvailability to be DISABLED on cluster: " + url);
+                }
+            } catch (Exception e) {
+                log.error("Got exception while trying to determine pushHighAvailability settings on cluster: " + url, e);
+            }
+        } else {
+            log.info("pushHighAvailability is disabled by the job config.");
         }
+
+        boolean rollback = props.getBoolean(PUSH_ROLLBACK, true);
 
         if (rollback) {
             failedFetchStrategyList.add(
                     new DeleteAllFailedFetchStrategy(adminClientPerCluster.get(url)));
         }
+
+        log.info("Push starting for cluster: " + url);
 
         new VoldemortSwapJob(
                 this.getId() + "-push-store",

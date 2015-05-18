@@ -4130,7 +4130,10 @@ public class AdminClient implements Closeable {
             return response.getDefaultInstanceForType();
         }
 
-        public void disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
+        /**
+          * @return true if successful, false otherwise.
+         */
+        public boolean disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
             VAdminProto.DisableStoreVersionRequest request = VAdminProto.DisableStoreVersionRequest.newBuilder()
                                                                                                    .setStoreName(storeName)
                                                                                                    .setPushVersion(storeVersion)
@@ -4143,9 +4146,14 @@ public class AdminClient implements Closeable {
             VAdminProto.DisableStoreVersionResponse.Builder response = rpcOps.sendAndReceive(nodeId,
                                                                                              adminRequest,
                                                                                              VAdminProto.DisableStoreVersionResponse.newBuilder());
-            if(response.hasError()) {
-                helperOps.throwException(response.getError());
+
+            if (response.getDisableSuccess()) {
+                logger.info(response.getInfo());
+            } else {
+                logger.error(response.getInfo());
             }
+
+            return response.getDisableSuccess();
         }
     }
 
