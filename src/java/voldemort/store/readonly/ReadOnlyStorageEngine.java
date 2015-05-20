@@ -657,7 +657,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
     private void checkEnabled() throws VoldemortException {
         if (!storeVersionManager.isCurrentVersionEnabled()) {
             throw new VoldemortException(
-                    "Store '" + getName() + "' version " + getCurrentVersionId() + " is disabled.");
+                    "Store '" + getName() + "' version " + getCurrentVersionId() + " is disabled on this node.");
         }
     }
 }

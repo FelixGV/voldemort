@@ -1,6 +1,7 @@
 package voldemort.store.readonly;
 
 import com.google.common.collect.Maps;
+import org.apache.log4j.Logger;
 import voldemort.store.PersistenceFailureException;
 
 import java.io.File;
@@ -24,6 +25,8 @@ import java.util.Map;
  * versions (not just ReadOnly).
  */
 public class StoreVersionManager {
+    private static final Logger logger = Logger.getLogger(StoreVersionManager.class);
+
     private static final String DISABLED_MARKER_NAME = ".disabled";
 
     private final File rootDir;
@@ -38,6 +41,30 @@ public class StoreVersionManager {
      */
     public StoreVersionManager(File rootDir) {
         this.rootDir = rootDir;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(this.getClass().getSimpleName());
+        sb.append(" { currentVersion: ");
+        sb.append(currentVersion);
+        sb.append(", versionToEnabledMap: {");
+        boolean firstItem = true;
+        for (Map.Entry<Long, Boolean> entry: versionToEnabledMap.entrySet()) {
+            if (firstItem) {
+                firstItem = false;
+            } else {
+                sb.append(", ");
+            }
+            sb.append(entry.getKey());
+            sb.append(": ");
+            sb.append(entry.getValue());
+        }
+        sb.append("}, rootDir: " + rootDir.toString());
+        sb.append(rootDir);
+        sb.append(" }");
+        return sb.toString();
     }
 
     /**
@@ -73,6 +100,8 @@ public class StoreVersionManager {
         } else {
             currentVersion = -1; // Should we throw instead?
         }
+
+        logger.info("Successfully synced internal state from file-system: " + this.toString());
     }
 
     /**
