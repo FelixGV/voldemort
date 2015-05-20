@@ -61,7 +61,7 @@ public class StoreVersionManager {
             sb.append(": ");
             sb.append(entry.getValue());
         }
-        sb.append("}, rootDir: " + rootDir.toString());
+        sb.append("}, rootDir: ");
         sb.append(rootDir);
         sb.append(" }");
         return sb.toString();
@@ -168,12 +168,15 @@ public class StoreVersionManager {
      * @throws IllegalArgumentException if the version does not exist
      */
     private boolean isVersionEnabled(File versionDir) throws IllegalArgumentException {
+        if (!versionDir.exists()) {
+            throw new IllegalArgumentException("The versionDir " + versionDir.getName() + " does not exist.");
+        }
         File[] relevantFile = versionDir.listFiles(new FileFilter() {
             public boolean accept(File pathName) {
                 return pathName.getName().equals(DISABLED_MARKER_NAME);
             }
         });
-        return relevantFile.length == 1;
+        return relevantFile.length == 0;
     }
 
     /**
