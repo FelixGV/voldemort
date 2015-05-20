@@ -138,8 +138,8 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
          */
         this.fileModificationLock = new ReentrantReadWriteLock();
         this.isOpen = false;
-        open(null);
         storeVersionManager = new StoreVersionManager(storeDir);
+        open(null);
     }
 
     @Override

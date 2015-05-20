@@ -337,7 +337,7 @@ public class AdminServiceRequestHandler implements RequestHandler {
                 ProtoUtils.writeMessage(outputStream,
                                         handleGetHighAvailabilitySettings(request.getGetHaSettings()));
             default:
-                throw new VoldemortException("Unkown operation " + request.getType());
+                throw new VoldemortException("Unknown operation: " + request.getType());
         }
 
         return null;
