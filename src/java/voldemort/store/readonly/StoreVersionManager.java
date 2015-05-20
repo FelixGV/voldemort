@@ -38,14 +38,35 @@ public class StoreVersionManager {
      */
     public StoreVersionManager(File rootDir) {
         this.rootDir = rootDir;
-        // TODO: If the StoreVersionManager supports non-RO store in the future,
-        // we should maybe move the functions below to another Utils class.
-        File[] versionDirs = ReadOnlyUtils.getVersionDirs(rootDir);
-        for (File versionDir: versionDirs) {
-            long versionNumber = ReadOnlyUtils.getVersionId(versionDir);
-            boolean versionEnabled = isVersionEnabled(versionDir);
-            versionToEnabledMap.put(versionNumber, versionEnabled);
+    }
+
+    /**
+     * Compares the StoreVersionManager's internal state with the content on the file-system
+     * of the rootDir provided at construction time.
+     *
+     * TODO: If the StoreVersionManager supports non-RO stores in the future,
+     *       we should move some of the ReadOnlyUtils functions below to another Utils class.
+     */
+    public void syncInternalStateFromFileSystem() {
+        // Make sure versions missing from the file-system are cleaned up from the internal state
+        for (Long version: versionToEnabledMap.keySet()) {
+            File[] existingVersionDirs = ReadOnlyUtils.getVersionDirs(rootDir, version, version);
+            if (existingVersionDirs.length == 0) {
+                removeVersion(version);
+            }
         }
+
+        // Make sure we have all versions on the file-system in the internal state
+        File[] versionDirs = ReadOnlyUtils.getVersionDirs(rootDir);
+        if (versionDirs != null) {
+            for (File versionDir: versionDirs) {
+                long versionNumber = ReadOnlyUtils.getVersionId(versionDir);
+                boolean versionEnabled = isVersionEnabled(versionDir);
+                versionToEnabledMap.put(versionNumber, versionEnabled);
+            }
+        }
+
+        // Identify the current version (based on a symlink in the file-system)
         File currentVersionDir = ReadOnlyUtils.getCurrentVersion(rootDir);
         if (currentVersionDir != null) {
             currentVersion = ReadOnlyUtils.getVersionId(currentVersionDir);
@@ -166,4 +187,12 @@ public class StoreVersionManager {
         }
     }
 
+    private void removeVersion(long version) {
+        if (currentVersion == version) {
+            currentVersion = -1; // Should we throw instead?
+        }
+        versionToEnabledMap.remove(version);
+
+        // TODO: Sync state with external state (i.e.: FailedFetchLock).
+    }
 }

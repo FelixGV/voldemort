@@ -203,15 +203,15 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
                 throw new VoldemortException("Unable to parse id from version directory "
                                              + versionDir.getAbsolutePath());
             }
-            storeVersionManager.setCurrentVersion(versionId);
             Utils.mkdirs(versionDir);
 
             // Create symbolic link
             logger.info("Creating symbolic link for '" + getName() + "' using directory "
                         + versionDir.getAbsolutePath());
             Utils.symlink(versionDir.getAbsolutePath(), storeDir.getAbsolutePath() + File.separator
-                                                        + "latest");
+                    + "latest");
             this.fileSet = new ChunkedFileSet(versionDir, routingStrategy, nodeId, enforceMlock);
+            storeVersionManager.syncInternalStateFromFileSystem();
             this.lastSwapped = System.currentTimeMillis();
             this.isOpen = true;
         } catch(IOException e) {
@@ -414,6 +414,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
                     Utils.rm(file);
                     logger.info("Deleting of " + file.getAbsolutePath()
                                 + " completed successfully.");
+                    storeVersionManager.syncInternalStateFromFileSystem();
                 } catch(Exception e) {
                     logger.error(e);
                 }
