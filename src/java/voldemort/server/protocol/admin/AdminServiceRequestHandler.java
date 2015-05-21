@@ -331,7 +331,7 @@ public class AdminServiceRequestHandler implements RequestHandler {
                 break;
             case GET_HA_SETTINGS:
                 ProtoUtils.writeMessage(outputStream,
-                        handleGetHighAvailabilitySettings(request.getGetHaSettings()));
+                                        handleGetHighAvailabilitySettings(request.getGetHaSettings()));
                 break;
             case DISABLE_STORE_VERSION:
                 ProtoUtils.writeMessage(outputStream,
