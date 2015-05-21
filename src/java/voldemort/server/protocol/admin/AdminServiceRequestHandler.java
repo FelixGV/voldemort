@@ -329,13 +329,14 @@ public class AdminServiceRequestHandler implements RequestHandler {
                 ProtoUtils.writeMessage(outputStream,
                                         handleReserveMemory(request.getReserveMemory()));
                 break;
+            case GET_HA_SETTINGS:
+                ProtoUtils.writeMessage(outputStream,
+                        handleGetHighAvailabilitySettings(request.getGetHaSettings()));
+                break;
             case DISABLE_STORE_VERSION:
                 ProtoUtils.writeMessage(outputStream,
                                         handleDisableStoreVersion(request.getDisableStoreVersion()));
                 break;
-            case GET_HA_SETTINGS:
-                ProtoUtils.writeMessage(outputStream,
-                                        handleGetHighAvailabilitySettings(request.getGetHaSettings()));
             default:
                 throw new VoldemortException("Unknown operation: " + request.getType());
         }
