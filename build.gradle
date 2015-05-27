@@ -383,8 +383,10 @@ task wrapper(type: Wrapper) { gradleVersion = '2.0' }
 
 
 dependencies {
+    // Transitive dependencies we don't want: 'org.jboss.netty'
+
     // Avro serialization format
-    compile 'org.apache.avro:avro:1.4.0'
+    compile('org.apache.avro:avro:1.4.0') { exclude group: 'org.jboss.netty' }
 
     // INTERNAL_LIBS azkaban version not found
     // azkaban-common-0.05.jar
@@ -538,7 +540,7 @@ dependencies {
     compile 'commons-configuration:commons-configuration:1.6'
     compile 'org.apache.hadoop:hadoop-core:1.2.1'
 
-    compile 'com.linkedin.pegasus:r2:1.8.3'
+    compile('com.linkedin.pegasus:r2:1.8.3') { exclude group: 'org.jboss.netty' }
     compile 'com.linkedin.pegasus:data:1.8.3'
     compile 'com.linkedin.pegasus:pegasus-common:1.8.3'
     compile 'com.linkedin.azkaban:azkaban:2.5.0'
