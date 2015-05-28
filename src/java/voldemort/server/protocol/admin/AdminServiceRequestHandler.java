@@ -1950,6 +1950,8 @@ public class AdminServiceRequestHandler implements RequestHandler {
     }
 
     private Message handleGetHighAvailabilitySettings(VAdminProto.GetHighAvailabilitySettingsRequest getHaSettings) {
+        logger.info("Received GetHighAvailabilitySettingsRequest");
+
         VAdminProto.GetHighAvailabilitySettingsResponse.Builder response =
                 VAdminProto.GetHighAvailabilitySettingsResponse.newBuilder();
 
