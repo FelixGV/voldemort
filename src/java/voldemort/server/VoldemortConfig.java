@@ -375,11 +375,7 @@ public class VoldemortConfig implements Serializable {
         this.highAvailabilityPushLockPath = props.getString("push.ha.lock.path", null);
         this.highAvailabilityPushLockImplementation = props.getString("push.ha.lock.implementation", null);
         this.highAvailabilityPushMaxNodeFailures = props.getInt("push.ha.max.node.failure", 0);
-        this.highAvailabilityPushEnabled = (this.highAvailabilityPushClusterId != null &&
-                this.highAvailabilityPushLockPath != null &&
-                this.highAvailabilityPushLockImplementation != null &&
-                this.highAvailabilityPushMaxNodeFailures > 0 &&
-                props.getBoolean("push.ha.enabled", false));
+        this.highAvailabilityPushEnabled = props.getBoolean("push.ha.enabled", false);
 
         this.setUseMlock(props.getBoolean("readonly.mlock.index", true));
 
@@ -647,6 +643,17 @@ public class VoldemortConfig implements Serializable {
             throw new ConfigurationException("rest.service.storage.thread.pool.queue.size cannot be negative.");
         if(maxHttpAggregatedContentLength <= 0)
             throw new ConfigurationException("max.http.aggregated.content.length must be positive");
+        if (this.highAvailabilityPushEnabled) {
+            if (this.highAvailabilityPushClusterId == null)
+                throw new ConfigurationException("push.ha.cluster.id must be set if push.ha.enabled=true");
+            if (this.highAvailabilityPushLockPath == null)
+                throw new ConfigurationException("push.ha.lock.path must be set if push.ha.enabled=true");
+            if (this.highAvailabilityPushLockImplementation == null)
+                throw new ConfigurationException("push.ha.lock.implementation must be set if push.ha.enabled=true");
+            if (this.highAvailabilityPushMaxNodeFailures < 1)
+                throw new ConfigurationException("push.ha.max.node.failure must be 1 or more if push.ha.enabled=true");
+        }
+
     }
 
     private int getIntEnvVariable(String name) {
