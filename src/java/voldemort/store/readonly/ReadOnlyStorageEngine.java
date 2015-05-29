@@ -416,7 +416,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
                                 + " completed successfully.");
                     storeVersionManager.syncInternalStateFromFileSystem();
                 } catch(Exception e) {
-                    logger.error(e);
+                    logger.error("Exception during deleteAsync for path: " + file, e);
                 }
             }
         }, "background-file-delete").start();
