@@ -71,7 +71,6 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
     private final static String PUSH_HA_LOCK_HDFS_TIMEOUT = "push.ha.lock.hdfs.timeout";
     private final static String PUSH_HA_LOCK_HDFS_RETRIES = "push.ha.lock.hdfs.retries";
-    private final static String PUSH_HA_LOCK_HDFS_PATH = "push.ha.lock.path";
 
     private final static String AZKABAN_FLOW_ID = "azkaban.flow.flowid";
     private final static String AZKABAN_JOB_ID = "azkaban.job.id";
@@ -87,7 +86,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     private final Integer maxAttempts = props.getInt(PUSH_HA_LOCK_HDFS_RETRIES, 90);
 
     // HDFS directories
-    private final String baseDir = props.getString(PUSH_HA_LOCK_HDFS_PATH);
+    private final String baseDir = props.getString(PUSH_HA_LOCK_PATH);
     private final String clusterDir = baseDir + "/" + clusterId;
     private final String lockDir = clusterDir + "/" + LOCK_DIR;
     private final String beforeLockDir = lockDir + "/" + BEFORE_ACQUISITION_DIR;

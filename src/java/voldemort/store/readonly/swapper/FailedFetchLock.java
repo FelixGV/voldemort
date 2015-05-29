@@ -17,7 +17,7 @@ public abstract class FailedFetchLock implements Closeable {
     protected final String clusterId;
     public FailedFetchLock(Props props, String clusterUrl) {
         this.props = props;
-        this.clusterId = sanitizeClusterId(clusterUrl);
+        this.clusterId = clusterUrl;
     }
     public abstract void acquireLock() throws Exception;
     public abstract void releaseLock() throws Exception;
@@ -28,13 +28,5 @@ public abstract class FailedFetchLock implements Closeable {
     @Override
     public String toString() {
         return this.getClass().getSimpleName() + " for cluster: " + clusterId;
-    }
-
-    private String sanitizeClusterId(String clusterUrl) {
-        try {
-            return new URI(clusterUrl).getHost();
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("The clusterUrl parameter must be a valid URI!", e);
-        }
     }
 }
