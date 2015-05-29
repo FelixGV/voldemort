@@ -4123,11 +4123,9 @@ public class AdminClient implements Closeable {
                     .setGetHaSettings(getHighAvailabilitySettingsRequest)
                     .setType(VAdminProto.AdminRequestType.GET_HA_SETTINGS)
                     .build();
-            VAdminProto.GetHighAvailabilitySettingsResponse.Builder response = rpcOps.sendAndReceive(nodeId,
+            return rpcOps.sendAndReceive(nodeId,
                     adminRequest,
-                    VAdminProto.GetHighAvailabilitySettingsResponse.newBuilder());
-
-            return response.getDefaultInstanceForType();
+                    VAdminProto.GetHighAvailabilitySettingsResponse.newBuilder()).build();
         }
 
         /**
