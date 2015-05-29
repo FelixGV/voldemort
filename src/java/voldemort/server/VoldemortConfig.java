@@ -164,10 +164,15 @@ public class VoldemortConfig implements Serializable {
     // flag to indicate if we will mlock and pin index pages in memory
     private boolean useMlock;
 
+    public static final String PUSH_HA_ENABLED = "push.ha.enabled";
     private boolean highAvailabilityPushEnabled;
+    public static final String PUSH_HA_CLUSTER_ID = "push.ha.cluster.id";
     private String highAvailabilityPushClusterId;
+    public static final String PUSH_HA_LOCK_PATH = "push.ha.lock.path";
     private String highAvailabilityPushLockPath;
+    public static final String PUSH_HA_LOCK_IMPLEMENTATION = "push.ha.lock.implementation";
     private String highAvailabilityPushLockImplementation;
+    public static final String PUSH_HA_MAX_NODE_FAILURES = "push.ha.max.node.failure";
     private int highAvailabilityPushMaxNodeFailures;
 
     private OpTimeMap testingSlowQueueingDelays;
@@ -371,11 +376,11 @@ public class VoldemortConfig implements Serializable {
         this.readOnlyCompressionCodec = props.getString("readonly.compression.codec",
                                                         VoldemortConfig.DEFAULT_RO_COMPRESSION_CODEC);
 
-        this.highAvailabilityPushClusterId = props.getString("push.ha.cluster.id", null);
-        this.highAvailabilityPushLockPath = props.getString("push.ha.lock.path", null);
-        this.highAvailabilityPushLockImplementation = props.getString("push.ha.lock.implementation", null);
-        this.highAvailabilityPushMaxNodeFailures = props.getInt("push.ha.max.node.failure", 0);
-        this.highAvailabilityPushEnabled = props.getBoolean("push.ha.enabled", false);
+        this.highAvailabilityPushClusterId = props.getString(PUSH_HA_CLUSTER_ID, null);
+        this.highAvailabilityPushLockPath = props.getString(PUSH_HA_LOCK_PATH, null);
+        this.highAvailabilityPushLockImplementation = props.getString(PUSH_HA_LOCK_IMPLEMENTATION, null);
+        this.highAvailabilityPushMaxNodeFailures = props.getInt(PUSH_HA_MAX_NODE_FAILURES, 0);
+        this.highAvailabilityPushEnabled = props.getBoolean(PUSH_HA_ENABLED, false);
 
         this.setUseMlock(props.getBoolean("readonly.mlock.index", true));
 
@@ -645,15 +650,14 @@ public class VoldemortConfig implements Serializable {
             throw new ConfigurationException("max.http.aggregated.content.length must be positive");
         if (this.highAvailabilityPushEnabled) {
             if (this.highAvailabilityPushClusterId == null)
-                throw new ConfigurationException("push.ha.cluster.id must be set if push.ha.enabled=true");
+                throw new ConfigurationException(PUSH_HA_CLUSTER_ID + " must be set if " + PUSH_HA_ENABLED + "=true");
             if (this.highAvailabilityPushLockPath == null)
-                throw new ConfigurationException("push.ha.lock.path must be set if push.ha.enabled=true");
+                throw new ConfigurationException(PUSH_HA_LOCK_PATH + " must be set if " + PUSH_HA_ENABLED + "=true");
             if (this.highAvailabilityPushLockImplementation == null)
-                throw new ConfigurationException("push.ha.lock.implementation must be set if push.ha.enabled=true");
+                throw new ConfigurationException(PUSH_HA_LOCK_IMPLEMENTATION + " must be set if " + PUSH_HA_ENABLED + "=true");
             if (this.highAvailabilityPushMaxNodeFailures < 1)
-                throw new ConfigurationException("push.ha.max.node.failure must be 1 or more if push.ha.enabled=true");
+                throw new ConfigurationException(PUSH_HA_MAX_NODE_FAILURES + " must be 1 or more if " + PUSH_HA_ENABLED + "=true");
         }
-
     }
 
     private int getIntEnvVariable(String name) {

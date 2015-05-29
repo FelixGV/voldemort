@@ -86,8 +86,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     private final Integer maxAttempts = props.getInt(PUSH_HA_LOCK_HDFS_RETRIES, 90);
 
     // HDFS directories
-    private final String baseDir = props.getString(PUSH_HA_LOCK_PATH);
-    private final String clusterDir = baseDir + "/" + clusterId;
+    private final String clusterDir = lockPath + "/" + clusterId;
     private final String lockDir = clusterDir + "/" + LOCK_DIR;
     private final String beforeLockDir = lockDir + "/" + BEFORE_ACQUISITION_DIR;
     private final String afterLockDir = lockDir + "/" + AFTER_RELEASE_DIR;
@@ -100,8 +99,8 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     // Internal State
     private boolean lockAcquired = false;
 
-    public HdfsFailedFetchLock(Props props, String clusterUrl) throws Exception {
-        super(props, clusterUrl);
+    public HdfsFailedFetchLock(Props props) throws Exception {
+        super(props);
         fileSystem = clusterPath.getFileSystem(new Configuration());
         initDirs();
     }

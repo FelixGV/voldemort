@@ -1,5 +1,6 @@
 package voldemort.store.readonly.swapper;
 
+import voldemort.server.VoldemortConfig;
 import voldemort.utils.Props;
 
 import java.io.Closeable;
@@ -11,13 +12,13 @@ import java.util.Set;
  * Component to make sure we can do some operations synchronously across many processes.
  */
 public abstract class FailedFetchLock implements Closeable {
-    public final static String PUSH_HA_LOCK_PATH = "push.ha.lock.path";
-
     protected final Props props;
+    protected final String lockPath;
     protected final String clusterId;
-    public FailedFetchLock(Props props, String clusterUrl) {
+    public FailedFetchLock(Props props) {
         this.props = props;
-        this.clusterId = clusterUrl;
+        this.lockPath = props.getString(VoldemortConfig.PUSH_HA_LOCK_PATH);
+        this.clusterId = props.getString(VoldemortConfig.PUSH_HA_CLUSTER_ID);
     }
     public abstract void acquireLock() throws Exception;
     public abstract void releaseLock() throws Exception;

@@ -49,6 +49,7 @@ import voldemort.cluster.Node;
 import voldemort.serialization.DefaultSerializerFactory;
 import voldemort.serialization.SerializerDefinition;
 import voldemort.serialization.json.JsonTypeDefinition;
+import voldemort.server.VoldemortConfig;
 import voldemort.store.StoreDefinition;
 import voldemort.store.readonly.checksum.CheckSum;
 import voldemort.store.readonly.checksum.CheckSum.CheckSumType;
@@ -136,7 +137,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String PUSH_ROLLBACK = "push.rollback";
     public final static String PUSH_FORCE_SCHEMA_KEY = "push.force.schema.key";
     public final static String PUSH_FORCE_SCHEMA_VALUE = "push.force.schema.value";
-    public final static String PUSH_HA_ENABLED = "push.ha.enabled";
     // others.optional
     public final static String KEY_SELECTION = "key.selection";
     public final static String VALUE_SELECTION = "value.selection";
@@ -223,7 +223,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         // By default, Push HA will be enabled if the server says so.
         // If the job sets Push HA to false, then it will be disabled, no matter what the server asks for.
-        pushHighAvailability = props.getBoolean(PUSH_HA_ENABLED, true);
+        pushHighAvailability = props.getBoolean(VoldemortConfig.PUSH_HA_ENABLED, true);
 
         // Initializing hooks
         heartBeatHookIntervalTime = props.getInt(HEARTBEAT_HOOK_INTERVAL_MS, 60000);
@@ -818,10 +818,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         Class<? extends FailedFetchLock> failedFetchLockClass =
                                 (Class<? extends FailedFetchLock>) Class.forName(serverSettings.getLockImplementation());
                         Props propsForCluster = new Props(props);
-                        propsForCluster.put(FailedFetchLock.PUSH_HA_LOCK_PATH, serverSettings.getLockPath());
-                        Object[] failedFetchLockParameters = new Object[]{props, serverSettings.getClusterId()};
+                        propsForCluster.put(VoldemortConfig.PUSH_HA_LOCK_PATH, serverSettings.getLockPath());
+                        propsForCluster.put(VoldemortConfig.PUSH_HA_CLUSTER_ID, serverSettings.getClusterId());
                         FailedFetchLock failedFetchLock =
-                                ReflectUtils.callConstructor(failedFetchLockClass, failedFetchLockParameters);
+                                ReflectUtils.callConstructor(failedFetchLockClass, new Object[]{propsForCluster});
                         failedFetchStrategyList.add(
                                 new DisableStoreOnFailedNodeFailedFetchStrategy(
                                         adminClientPerCluster.get(url),
