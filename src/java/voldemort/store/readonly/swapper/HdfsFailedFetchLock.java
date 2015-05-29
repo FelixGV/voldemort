@@ -71,7 +71,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
 
     private final static String PUSH_HA_LOCK_HDFS_TIMEOUT = "push.ha.lock.hdfs.timeout";
     private final static String PUSH_HA_LOCK_HDFS_RETRIES = "push.ha.lock.hdfs.retries";
-    private final static String PUSH_HA_LOCK_HDFS_PATH = "push.ha.lock.hdfs.path";
+    private final static String PUSH_HA_LOCK_HDFS_PATH = "push.ha.lock.path";
 
     private final static String AZKABAN_FLOW_ID = "azkaban.flow.flowid";
     private final static String AZKABAN_JOB_ID = "azkaban.job.id";
