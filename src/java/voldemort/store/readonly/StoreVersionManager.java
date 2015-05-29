@@ -30,7 +30,7 @@ public class StoreVersionManager {
     private static final String DISABLED_MARKER_NAME = ".disabled";
 
     private final File rootDir;
-    private final Map<Long, Boolean> versionToEnabledMap = Maps.newHashMap();
+    private final Map<Long, Boolean> versionToEnabledMap = Maps.newConcurrentMap();
     private long currentVersion;
 
     /**
