@@ -188,13 +188,12 @@ public class StoreVersionManager {
      *                                     inaccessible).
      */
     private void persistDisabledVersion(long version) throws PersistenceFailureException {
-        File versionDir = ReadOnlyUtils.getVersionDirs(rootDir, version, version)[0];
-        File disabledMarker = new File(versionDir, DISABLED_MARKER_NAME);
+        File disabledMarker = getDisabledMarkerFile(version);
         try {
             disabledMarker.createNewFile();
         } catch (IOException e) {
             throw new PersistenceFailureException(
-                    "Failed to create the disabled marker in: " + versionDir.getAbsolutePath() +
+                    "Failed to create the disabled marker for version " + version + " in rootDir: " + rootDir +
                             "\nThe store/version will remain disabled only until the next restart.", e);
         }
     }
@@ -208,15 +207,23 @@ public class StoreVersionManager {
      *                                     inaccessible).
      */
     private void persistEnabledVersion(long version) throws PersistenceFailureException {
-        File versionDir = ReadOnlyUtils.getVersionDirs(rootDir, version, version)[0];
-        File disabledMarker = new File(versionDir, DISABLED_MARKER_NAME);
+        File disabledMarker = getDisabledMarkerFile(version);
         if (disabledMarker.exists()) {
             if (!disabledMarker.delete()) {
                 throw new PersistenceFailureException(
-                        "Failed to delete the disabled marker in: " + versionDir.getAbsolutePath() +
+                        "Failed to delete the disabled marker for version " + version + " in rootDir: " + rootDir +
                                 "\nThe store/version will remain enabled only until the next restart.");
             }
         }
+    }
+
+    private File getDisabledMarkerFile(long version) throws PersistenceFailureException {
+        File[] versionDirArray = ReadOnlyUtils.getVersionDirs(rootDir, version, version);
+        if (versionDirArray.length == 0) {
+            throw new PersistenceFailureException("getDisabledMarkerFile did not find the requested version on disk." +
+                    "Version: " + version + ", rootDir: " + rootDir);
+        }
+        return versionDirArray[0];
     }
 
     private void removeVersion(long version) {
