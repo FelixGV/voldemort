@@ -3939,30 +3939,57 @@ public class AdminClient implements Closeable {
         }
 
         /**
-         * This is a wrapper around {@link #getROMaxVersion(int, List)} where-in
+         * This is a wrapper around {@link #getROMaxVersion(java.util.List, int)} where-in
          * we find the max versions on each machine and then return the max of
-         * all of them
+         * all of them, without tolerating any node failures.
          * 
          * @param storeNames List of all read-only stores
          * @return A map of store-name to their corresponding max version id
          */
         public Map<String, Long> getROMaxVersion(List<String> storeNames) {
+            return getROMaxVersion(storeNames, 0);
+        }
+
+        /**
+         * This is a wrapper around {@link #getROMaxVersion(int, List)} where-in
+         * we find the max versions on each machine and then return the max of
+         * all of them
+         *
+         * @param storeNames List of all read-only stores
+         * @param maxNodeFailures The maximum number of nodes which can fail to respond
+         * @return A map of store-name to their corresponding max version id
+         */
+        public Map<String, Long> getROMaxVersion(List<String> storeNames, int maxNodeFailures) {
+            int nodeFailures = 0;
             Map<String, Long> storeToMaxVersion = Maps.newHashMapWithExpectedSize(storeNames.size());
             for(String storeName: storeNames) {
                 storeToMaxVersion.put(storeName, 0L);
             }
 
             for(Node node: currentCluster.getNodes()) {
-                Map<String, Long> currentNodeVersions = getROMaxVersion(node.getId(), storeNames);
-                for(String storeName: currentNodeVersions.keySet()) {
-                    Long maxVersion = storeToMaxVersion.get(storeName);
-                    if(maxVersion != null && maxVersion < currentNodeVersions.get(storeName)) {
-                        storeToMaxVersion.put(storeName, currentNodeVersions.get(storeName));
+                try {
+                    Map<String, Long> currentNodeVersions = getROMaxVersion(node.getId(), storeNames);
+                    for(String storeName: currentNodeVersions.keySet()) {
+                        Long maxVersion = storeToMaxVersion.get(storeName);
+                        if(maxVersion != null && maxVersion < currentNodeVersions.get(storeName)) {
+                            storeToMaxVersion.put(storeName, currentNodeVersions.get(storeName));
+                        }
+                    }
+                } catch (VoldemortException e) {
+                    nodeFailures++;
+                    if (nodeFailures > maxNodeFailures) {
+                        logger.error("Got an exception while trying to reach node " + node.getId() + ". " +
+                                nodeFailures + " node failures so far; maxNodeFailures exceeded, rethrowing.");
+                        throw e;
+                    } else {
+                        logger.warn("Got an exception while trying to reach node " + node.getId() + ". " +
+                                nodeFailures + " node failures so far; continuing.", e);
                     }
                 }
             }
             return storeToMaxVersion;
         }
+
 
         /**
          * Returns the file names of a specific store on one node.

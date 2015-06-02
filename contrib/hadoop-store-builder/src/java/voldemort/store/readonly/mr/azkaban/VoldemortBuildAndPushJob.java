@@ -57,7 +57,6 @@ import voldemort.store.readonly.disk.KeyValueWriter;
 import voldemort.store.readonly.hooks.BuildAndPushHook;
 import voldemort.store.readonly.hooks.BuildAndPushStatus;
 import voldemort.store.readonly.mr.azkaban.VoldemortStoreBuilderJob.VoldemortStoreBuilderConf;
-import voldemort.store.readonly.mr.azkaban.VoldemortSwapJob.VoldemortSwapConf;
 import voldemort.store.readonly.mr.utils.AvroUtils;
 import voldemort.store.readonly.mr.utils.HadoopUtils;
 import voldemort.store.readonly.mr.utils.JsonSchema;
@@ -66,7 +65,6 @@ import voldemort.store.readonly.swapper.DeleteAllFailedFetchStrategy;
 import voldemort.store.readonly.swapper.DisableStoreOnFailedNodeFailedFetchStrategy;
 import voldemort.store.readonly.swapper.FailedFetchLock;
 import voldemort.store.readonly.swapper.FailedFetchStrategy;
-import voldemort.store.readonly.swapper.HdfsFailedFetchLock;
 import voldemort.store.readonly.swapper.RecoverableFailedFetchException;
 import voldemort.utils.Props;
 import voldemort.utils.ReflectUtils;
@@ -804,8 +802,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             pushVersion = Long.parseLong(format.format(new Date()));
         }
         int maxBackoffDelayMs = 1000 * props.getInt(PUSH_BACKOFF_DELAY_SECONDS, 60);
-
         List<FailedFetchStrategy> failedFetchStrategyList = Lists.newArrayList();
+        int maxNodeFailures = 0;
 
         if (pushHighAvailability) {
             try {
@@ -813,7 +811,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         adminClientPerCluster.get(url).readonlyOps.getHighAvailabilitySettings(nodeId);
 
                 if (serverSettings.getEnabled()) {
-                    int maxNodeFailure = serverSettings.getMaxNodeFailure();
+                    maxNodeFailures = serverSettings.getMaxNodeFailure();
                     try {
                         Class<? extends FailedFetchLock> failedFetchLockClass =
                                 (Class<? extends FailedFetchLock>) Class.forName(serverSettings.getLockImplementation());
@@ -826,7 +824,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                 new DisableStoreOnFailedNodeFailedFetchStrategy(
                                         adminClientPerCluster.get(url),
                                         failedFetchLock,
-                                        maxNodeFailure,
+                                        maxNodeFailures,
                                         propsForCluster.toString()));
                         closeables.add(failedFetchLock);
                         log.info("pushHighAvailability is enabled for cluster URL: " + url +
@@ -856,16 +854,17 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         new VoldemortSwapJob(
                 this.getId() + "-push-store",
-                props,
-                new VoldemortSwapConf(
-                        cluster,
-                        dataDir,
-                        storeName,
-                        httpTimeoutMs,
-                        pushVersion,
-                        maxBackoffDelayMs,
-                        rollback,
-                        failedFetchStrategyList)).run();
+                cluster,
+                dataDir,
+                storeName,
+                httpTimeoutMs,
+                pushVersion,
+                maxBackoffDelayMs,
+                rollback,
+                hdfsFetcherProtocol,
+                hdfsFetcherPort,
+                maxNodeFailures,
+                failedFetchStrategyList).run();
     }
 
     /**
