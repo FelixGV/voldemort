@@ -1927,9 +1927,9 @@ public class AdminServiceRequestHandler implements RequestHandler {
             response.setDisableSuccess(true)
                     .setDisablePersistenceSuccess(false)
                     .setInfo("The store '" + storeName + "' version " + version + " was disabled" +
-                            "but the change could not be persisted and will thus remain in effect only " +
-                            "until the next server restart. This is likely caused by the IO subsystem " +
-                            "becoming read-only.");
+                            " but the change could not be persisted and will thus remain in effect only" +
+                            " until the next server restart. This is likely caused by the IO subsystem" +
+                            " becoming read-only.");
         } catch (NoSuchCapabilityException e) {
             response.setDisableSuccess(false)
                     .setInfo("The store '" + storeName + "' does not support disabling versions!");

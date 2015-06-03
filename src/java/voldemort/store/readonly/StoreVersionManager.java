@@ -220,7 +220,7 @@ public class StoreVersionManager {
     private File getDisabledMarkerFile(long version) throws PersistenceFailureException {
         File[] versionDirArray = ReadOnlyUtils.getVersionDirs(rootDir, version, version);
         if (versionDirArray.length == 0) {
-            throw new PersistenceFailureException("getDisabledMarkerFile did not find the requested version on disk." +
+            throw new PersistenceFailureException("getDisabledMarkerFile did not find the requested version on disk. " +
                     "Version: " + version + ", rootDir: " + rootDir);
         }
         return versionDirArray[0];
