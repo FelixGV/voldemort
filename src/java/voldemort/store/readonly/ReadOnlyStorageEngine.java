@@ -36,6 +36,7 @@ import voldemort.annotations.jmx.JmxGetter;
 import voldemort.annotations.jmx.JmxOperation;
 import voldemort.routing.RoutingStrategy;
 import voldemort.store.AbstractStorageEngine;
+import voldemort.store.DisabledStoreException;
 import voldemort.store.StoreCapabilityType;
 import voldemort.store.StoreUtils;
 import voldemort.store.readonly.chunk.ChunkedFileSet;
@@ -656,7 +657,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     private void checkEnabled() throws VoldemortException {
         if (!storeVersionManager.isCurrentVersionEnabled()) {
-            throw new VoldemortException(
+            throw new DisabledStoreException(
                     "Store '" + getName() + "' version " + getCurrentVersionId() + " is disabled on this node.");
         }
     }

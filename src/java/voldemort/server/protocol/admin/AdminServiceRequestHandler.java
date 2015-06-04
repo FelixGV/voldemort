@@ -390,12 +390,11 @@ public class AdminServiceRequestHandler implements RequestHandler {
         try {
             Boolean setToOffline = request.getOfflineMode();
             logger.info("Setting OFFLINE_SERVER state to " + setToOffline.toString());
-            metadataStore.setOfflineState(setToOffline);
+
             if(setToOffline) {
-                server.stopOnlineServices();
+                server.goOffline();
             } else {
-                server.createOnlineServices();
-                server.startOnlineServices();
+                server.goOnline();
             }
             // TODO: deal with slop pushing here
         } catch(VoldemortException e) {
@@ -1945,6 +1944,13 @@ public class AdminServiceRequestHandler implements RequestHandler {
         }
 
         logger.info("handleDisableStoreVersion returning response: " + response.getInfo());
+
+        if (response.getDisableSuccess()) {
+            // Then we also want to put the server in offline mode
+            VAdminProto.SetOfflineStateRequest offlineStateRequest =
+                    VAdminProto.SetOfflineStateRequest.newBuilder().setOfflineMode(true).build();
+            handleSetOfflineState(offlineStateRequest);
+        }
 
         return response.build();
     }

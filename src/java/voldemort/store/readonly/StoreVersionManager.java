@@ -156,6 +156,13 @@ public class StoreVersionManager {
         this.currentVersion = currentVersion;
     }
 
+    public boolean hasAnyDisabledVersion() {
+        for (Boolean enabled: versionToEnabledMap.values()) {
+            if (!enabled) return false;
+        }
+        return true;
+    }
+
     // PRIVATE UTILITY FUNCTIONS
 
     /**

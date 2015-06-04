@@ -206,7 +206,7 @@ public class AdminStoreSwapper {
             if (swapIsPossible) {
                 // We're good... We'll return the fetchResponseMap.
             } else {
-                throw new UnrecoverableFailedFetchException("Exception during push. Swap will be aborted.");
+                throw new VoldemortException("Exception during push. Swap will be aborted.");
             }
         }
         return fetchResponseMap;
