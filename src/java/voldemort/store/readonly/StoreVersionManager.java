@@ -158,9 +158,9 @@ public class StoreVersionManager {
 
     public boolean hasAnyDisabledVersion() {
         for (Boolean enabled: versionToEnabledMap.values()) {
-            if (!enabled) return false;
+            if (!enabled) return true;
         }
-        return true;
+        return false;
     }
 
     // PRIVATE UTILITY FUNCTIONS
