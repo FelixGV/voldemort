@@ -1914,14 +1914,19 @@ public class AdminServiceRequestHandler implements RequestHandler {
 
         try {
             StorageEngine storeToDisable = storeRepository.getStorageEngine(storeName);
+            
+            if (storeToDisable == null) {
+                response.setDisableSuccess(false)
+                        .setInfo("The store '" + storeName + "' does not exist!");
+            } else {
+                StoreVersionManager storeVersionManager = (StoreVersionManager)
+                        storeToDisable.getCapability(StoreCapabilityType.DISABLE_STORE_VERSION);
 
-            StoreVersionManager storeVersionManager = (StoreVersionManager)
-                    storeToDisable.getCapability(StoreCapabilityType.DISABLE_STORE_VERSION);
-
-            storeVersionManager.disableStoreVersion(version);
-            response.setDisableSuccess(true)
-                    .setDisablePersistenceSuccess(true)
-                    .setInfo("The store '" + storeName + "' version " + version + " was successfully disabled.");
+                storeVersionManager.disableStoreVersion(version);
+                response.setDisableSuccess(true)
+                        .setDisablePersistenceSuccess(true)
+                        .setInfo("The store '" + storeName + "' version " + version + " was successfully disabled.");
+            }
         } catch (PersistenceFailureException e) {
             response.setDisableSuccess(true)
                     .setDisablePersistenceSuccess(false)
@@ -1932,9 +1937,6 @@ public class AdminServiceRequestHandler implements RequestHandler {
         } catch (NoSuchCapabilityException e) {
             response.setDisableSuccess(false)
                     .setInfo("The store '" + storeName + "' does not support disabling versions!");
-        } catch (NullPointerException e) {
-            response.setDisableSuccess(false)
-                    .setInfo("The store '" + storeName + "' does not exist!");
         } catch (Exception e) {
             logger.error("Got an unexpected exception while trying to disable store '" +
                     storeName + "' version " + version + ".", e);
