@@ -2,6 +2,7 @@ package voldemort.store.readonly.swapper;
 
 import com.google.common.collect.Sets;
 import voldemort.client.protocol.admin.AdminClient;
+import voldemort.store.UnreachableStoreException;
 
 import java.util.Map;
 import java.util.Set;
@@ -12,13 +13,16 @@ import java.util.Set;
 public class DisableStoreOnFailedNodeFailedFetchStrategy extends FailedFetchStrategy {
     private final FailedFetchLock distributedLock;
     private final Integer maxNodeFailure;
+    private final String extraInfo;
 
     public DisableStoreOnFailedNodeFailedFetchStrategy(AdminClient adminClient,
                                                        FailedFetchLock distributedLock,
-                                                       Integer maxNodeFailure) {
+                                                       Integer maxNodeFailure,
+                                                       String extraInfo) {
         super(adminClient);
         this.distributedLock = distributedLock;
         this.maxNodeFailure = maxNodeFailure;
+        this.extraInfo = extraInfo;
     }
 
     @Override
@@ -62,9 +66,14 @@ public class DisableStoreOnFailedNodeFailedFetchStrategy extends FailedFetchStra
 
                 for (Integer nodeId: nodesFailedInThisRun) {
                     logger.warn("Will disable store '" + storeName + "' on node " + nodeId);
-                    String details = "TBD";
-                    distributedLock.addDisabledNode(nodeId, details, storeName, pushVersion);
-                    adminClient.readonlyOps.disableStore(nodeId, storeName);
+                    distributedLock.addDisabledNode(nodeId, storeName, pushVersion);
+                    try {
+                        adminClient.readonlyOps.disableStoreVersion(nodeId, storeName, pushVersion, extraInfo);
+                    } catch (UnreachableStoreException e) {
+                        logger.warn("Got an UnreachableStoreException while trying to disableStoreVersion on node " +
+                                nodeId + ", store " + storeName + ", version " + pushVersion +
+                                ". If the node is actually up and merely net-split from us, it might continue serving stale data...", e);
+                    }
                 }
 
                 return true;

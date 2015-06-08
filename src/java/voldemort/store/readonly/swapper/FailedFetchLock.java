@@ -1,5 +1,6 @@
 package voldemort.store.readonly.swapper;
 
+import voldemort.server.VoldemortConfig;
 import voldemort.utils.Props;
 
 import java.io.Closeable;
@@ -12,28 +13,21 @@ import java.util.Set;
  */
 public abstract class FailedFetchLock implements Closeable {
     protected final Props props;
+    protected final String lockPath;
     protected final String clusterId;
-    public FailedFetchLock(Props props, String clusterUrl) {
+    public FailedFetchLock(Props props) {
         this.props = props;
-        this.clusterId = sanitizeClusterId(clusterUrl);
+        this.lockPath = props.getString(VoldemortConfig.PUSH_HA_LOCK_PATH);
+        this.clusterId = props.getString(VoldemortConfig.PUSH_HA_CLUSTER_ID);
     }
     public abstract void acquireLock() throws Exception;
     public abstract void releaseLock() throws Exception;
     public abstract Set<Integer> getDisabledNodes() throws Exception;
     public abstract void addDisabledNode(int nodeId,
-                                         String details,
                                          String storeName,
                                          long storeVersion) throws Exception;
     @Override
     public String toString() {
         return this.getClass().getSimpleName() + " for cluster: " + clusterId;
-    }
-
-    private String sanitizeClusterId(String clusterUrl) {
-        try {
-            return new URI(clusterUrl).getHost();
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("The clusterUrl parameter must be a valid URI!", e);
-        }
     }
 }
