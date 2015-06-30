@@ -805,42 +805,42 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         List<FailedFetchStrategy> failedFetchStrategyList = Lists.newArrayList();
         int maxNodeFailures = 0;
 
-        if (pushHighAvailability) {
+        if (!pushHighAvailability) {
+            log.info("pushHighAvailability is disabled by the job config.");
+        } else {
+            // HA is enabled by the BnP job config
             try {
                 VAdminProto.GetHighAvailabilitySettingsResponse serverSettings =
                         adminClientPerCluster.get(url).readonlyOps.getHighAvailabilitySettings(nodeId);
 
-                if (serverSettings.getEnabled()) {
-                    maxNodeFailures = serverSettings.getMaxNodeFailure();
-                    try {
-                        Class<? extends FailedFetchLock> failedFetchLockClass =
-                                (Class<? extends FailedFetchLock>) Class.forName(serverSettings.getLockImplementation());
-                        Props propsForCluster = new Props(props);
-                        propsForCluster.put(VoldemortConfig.PUSH_HA_LOCK_PATH, serverSettings.getLockPath());
-                        propsForCluster.put(VoldemortConfig.PUSH_HA_CLUSTER_ID, serverSettings.getClusterId());
-                        FailedFetchLock failedFetchLock =
-                                ReflectUtils.callConstructor(failedFetchLockClass, new Object[]{propsForCluster});
-                        failedFetchStrategyList.add(
-                                new DisableStoreOnFailedNodeFailedFetchStrategy(
-                                        adminClientPerCluster.get(url),
-                                        failedFetchLock,
-                                        maxNodeFailures,
-                                        propsForCluster.toString()));
-                        closeables.add(failedFetchLock);
-                        log.info("pushHighAvailability is enabled for cluster URL: " + url +
-                                " with cluster ID: " + serverSettings.getClusterId());
-                    } catch (ClassNotFoundException e) {
-                        log.error("Failed to find requested FailedFetchLock implementation, so " +
-                                "pushHighAvailability will be DISABLED on cluster: " + url, e);
-                    }
-                } else {
+                if (!serverSettings.getEnabled()) {
                     log.warn("The server requested pushHighAvailability to be DISABLED on cluster: " + url);
+                } else {
+                    // HA is enabled by the server config
+                    maxNodeFailures = serverSettings.getMaxNodeFailure();
+                    Class<? extends FailedFetchLock> failedFetchLockClass =
+                            (Class<? extends FailedFetchLock>) Class.forName(serverSettings.getLockImplementation());
+                    Props propsForCluster = new Props(props);
+                    propsForCluster.put(VoldemortConfig.PUSH_HA_LOCK_PATH, serverSettings.getLockPath());
+                    propsForCluster.put(VoldemortConfig.PUSH_HA_CLUSTER_ID, serverSettings.getClusterId());
+                    FailedFetchLock failedFetchLock =
+                            ReflectUtils.callConstructor(failedFetchLockClass, new Object[]{propsForCluster});
+                    failedFetchStrategyList.add(
+                            new DisableStoreOnFailedNodeFailedFetchStrategy(
+                                    adminClientPerCluster.get(url),
+                                    failedFetchLock,
+                                    maxNodeFailures,
+                                    propsForCluster.toString()));
+                    closeables.add(failedFetchLock);
+                    log.info("pushHighAvailability is enabled for cluster URL: " + url +
+                            " with cluster ID: " + serverSettings.getClusterId());
                 }
+            } catch (ClassNotFoundException e) {
+                log.error("Failed to find requested FailedFetchLock implementation, so " +
+                        "pushHighAvailability will be DISABLED on cluster: " + url, e);
             } catch (Exception e) {
                 log.error("Got exception while trying to determine pushHighAvailability settings on cluster: " + url, e);
             }
-        } else {
-            log.info("pushHighAvailability is disabled by the job config.");
         }
 
         boolean rollback = props.getBoolean(PUSH_ROLLBACK, true);

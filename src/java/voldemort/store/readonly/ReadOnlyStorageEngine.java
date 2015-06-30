@@ -520,7 +520,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
 
     @Override
     public List<Versioned<byte[]>> get(ByteArray key, byte[] transforms) throws VoldemortException {
-        checkEnabled();
+        checkStoreEnabled();
         StoreUtils.assertValidKey(key);
         try {
             fileModificationLock.readLock().lock();
@@ -551,7 +551,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
     public Map<ByteArray, List<Versioned<byte[]>>> getAll(Iterable<ByteArray> keys,
                                                           Map<ByteArray, byte[]> transforms)
             throws VoldemortException {
-        checkEnabled();
+        checkStoreEnabled();
         StoreUtils.assertValidKeys(keys);
         Map<ByteArray, List<Versioned<byte[]>>> results = StoreUtils.newEmptyHashMap(keys);
         try {
@@ -655,7 +655,7 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
         return true;
     }
 
-    private void checkEnabled() throws VoldemortException {
+    private void checkStoreEnabled() throws VoldemortException {
         if (!storeVersionManager.isCurrentVersionEnabled()) {
             throw new DisabledStoreException(
                     "Store '" + getName() + "' version " + getCurrentVersionId() + " is disabled on this node.");
