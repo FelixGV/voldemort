@@ -117,16 +117,6 @@ public class HdfsFetcher implements FileFetcher {
              config.getReadOnlyMaxVersionsStatsFile(),
              config.getFetcherSocketTimeout());
         this.voldemortConfig = config;
-
-        if(dynThrottleLimit == null) {
-            logger.info("Created hdfs fetcher with no dynamic throttler, buffer size " + bufferSize
-                        + ", reporting interval bytes " + reportingIntervalBytes
-                        + ", fetcher socket timeout " + socketTimeout);
-        } else {
-            logger.info("Created hdfs fetcher with throttle rate " + dynThrottleLimit.getRate()
-                        + ", buffer size " + bufferSize + ", reporting interval bytes "
-                        + reportingIntervalBytes + ", fetcher socket timeout " + socketTimeout);
-        }
     }
 
     // Test-only constructor
@@ -164,17 +154,20 @@ public class HdfsFetcher implements FileFetcher {
                        boolean enableStatsFile,
                        int maxVersionsStatsFile,
                        int socketTimeout) {
+        String throttlerInfo = "";
         if(maxBytesPerSecond != null) {
             this.maxBytesPerSecond = maxBytesPerSecond;
             this.throttler = new EventThrottler(this.maxBytesPerSecond);
+            throttlerInfo = "static throttler with rate " + dynThrottleLimit.getRate() + " bytes / sec";
         } else if(dynThrottleLimit != null && dynThrottleLimit.getRate() != 0) {
             this.maxBytesPerSecond = dynThrottleLimit.getRate();
             this.throttler = new DynamicEventThrottler(dynThrottleLimit);
             this.globalThrottleLimit = dynThrottleLimit;
-            logger.info("Initializing Dynamic Event throttler with rate : "
-                        + this.maxBytesPerSecond + " bytes / sec");
-        } else
+            throttlerInfo = "dynamic throttler with initial rate " + dynThrottleLimit.getRate() + " bytes / sec";
+        } else {
             this.maxBytesPerSecond = null;
+            throttlerInfo = "no dynamic throttler";
+        }
         this.reportingIntervalBytes = Utils.notNull(reportingIntervalBytes);
         this.bufferSize = bufferSize;
         this.status = null;
@@ -186,6 +179,10 @@ public class HdfsFetcher implements FileFetcher {
         this.socketTimeout = socketTimeout;
         HdfsFetcher.kerberosPrincipal = kerberosUser;
         HdfsFetcher.keytabPath = keytabLocation;
+
+        logger.info("Created HdfsFetcher: " + throttlerInfo + ", buffer size " + bufferSize
+                + " bytes, reporting interval " + reportingIntervalBytes
+                + " bytes, fetcher socket timeout " + socketTimeout + " ms.");
     }
 
     public File fetch(String sourceFileUrl, String destinationFile) throws IOException {
@@ -620,17 +617,15 @@ public class HdfsFetcher implements FileFetcher {
         allowFetchOfFiles = true;
 
         long maxBytesPerSec = 1024 * 1024 * 1024;
-        Path p = new Path(url);
 
         final Configuration config = new Configuration();
-        final URI uri = new URI(url);
         config.setInt("io.file.buffer.size", VoldemortConfig.DEFAULT_FETCHER_BUFFER_SIZE);
         config.set("hadoop.rpc.socket.factory.class.ClientProtocol",
                    ConfigurableSocketFactory.class.getName());
         config.setInt("io.socket.receive.buffer", 1 * 1024 * 1024 - 10000);
 
         FileSystem fs = null;
-        p = new Path(url);
+        Path p = new Path(url);
         HdfsFetcher.keytabPath = keytabLocation;
         HdfsFetcher.kerberosPrincipal = kerberosUser;
 

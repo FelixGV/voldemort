@@ -25,7 +25,7 @@ import voldemort.annotations.concurrency.NotThreadsafe;
  * 
  * This class takes a maximum rate in events/sec and a minimum interval in ms at
  * which to check the rate. The rate is checked every time the interval
- * ellapses, and if the events rate exceeds the maximum, the call will block
+ * elapses, and if the events rate exceeds the maximum, the call will block
  * long enough to equalize it.
  * 
  * This is generalized IoThrottler as it existed before, you can use it to
@@ -79,17 +79,17 @@ public class EventThrottler {
 
         eventsSeenInLastInterval += eventsSeen;
         long now = time.getNanoseconds();
-        long ellapsedNs = now - startTime;
+        long elapsedNs = now - startTime;
         // if we have completed an interval AND we have seen some events, maybe
         // we should take a little nap
-        if(ellapsedNs > intervalMs * Time.NS_PER_MS && eventsSeenInLastInterval > 0) {
-            long eventsPerSec = (eventsSeenInLastInterval * Time.NS_PER_SECOND) / ellapsedNs;
+        if(elapsedNs > intervalMs * Time.NS_PER_MS && eventsSeenInLastInterval > 0) {
+            long eventsPerSec = (eventsSeenInLastInterval * Time.NS_PER_SECOND) / elapsedNs;
             if(eventsPerSec > rateLimit) {
                 // solve for the amount of time to sleep to make us hit the
                 // correct i/o rate
                 double maxEventsPerMs = rateLimit / (double) Time.MS_PER_SECOND;
-                long ellapsedMs = ellapsedNs / Time.NS_PER_MS;
-                long sleepTime = Math.round(eventsSeenInLastInterval / maxEventsPerMs - ellapsedMs);
+                long elapsedMs = elapsedNs / Time.NS_PER_MS;
+                long sleepTime = Math.round(eventsSeenInLastInterval / maxEventsPerMs - elapsedMs);
 
                 if(logger.isDebugEnabled())
                     logger.debug("Natural rate is " + eventsPerSec
