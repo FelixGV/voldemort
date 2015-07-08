@@ -22,13 +22,11 @@ import java.io.FileOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.URI;
 import java.security.PrivilegedExceptionAction;
 import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.zip.GZIPInputStream;
 
 import javax.management.ObjectName;
 
@@ -486,6 +484,7 @@ public class HdfsFetcher implements FileFetcher {
         for(int attempt = 0; attempt < maxAttempts; attempt++) {
             boolean success = true;
             long totalBytesRead = 0;
+            long totalBytesReadFromNetwork = 0;
             boolean fsOpened = false;
             try {
 
@@ -503,14 +502,16 @@ public class HdfsFetcher implements FileFetcher {
                     // specified in the Voldemort config, the default value of
                     // which is 64K. Using the same as the buffer size for
                     // GZIPInputStream as well.
-                    input = new GZIPInputStream(fs.open(source.getPath()), this.bufferSize);
+                    input = new InstrumentedGzipInputStream(fs.open(source.getPath()), this.bufferSize);
                 }
                 fsOpened = true;
 
                 output = new BufferedOutputStream(new FileOutputStream(dest));
 
+                int readFromNetwork, read;
+
                 while(true) {
-                    int read = input.read(buffer);
+                    read = input.read(buffer);
                     if(read < 0) {
                         break;
                     } else {
@@ -522,25 +523,32 @@ public class HdfsFetcher implements FileFetcher {
                         fileCheckSumGenerator.update(buffer, 0, read);
                     }
 
-                    // Check if we need to throttle the fetch
-                    if(throttler != null) {
-                        throttler.maybeThrottle(read);
+                    if (isCompressed) {
+                        readFromNetwork = ((InstrumentedGzipInputStream) input).getAndResetBytesReadFromInnerStream();
+                    } else {
+                        readFromNetwork = read;
                     }
 
-                    stats.recordBytes(read);
+                    // Check if we need to throttle the fetch
+                    if(throttler != null) {
+                        throttler.maybeThrottle(readFromNetwork);
+                    }
+
+                    stats.recordBytes(readFromNetwork, read);
                     totalBytesRead += read;
-                    if(stats.getBytesSinceLastReport() > reportingIntervalBytes) {
+                    totalBytesReadFromNetwork += readFromNetwork;
+                    if(stats.getBytesTransferredSinceLastReport() > reportingIntervalBytes) {
                         NumberFormat format = NumberFormat.getNumberInstance();
                         format.setMaximumFractionDigits(2);
-                        logger.info(stats.getTotalBytesCopied() / (1024 * 1024) + " MB copied at "
-                                    + format.format(stats.getBytesPerSecond() / (1024 * 1024))
+                        logger.info(stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
+                                    + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024))
                                     + " MB/sec - " + format.format(stats.getPercentCopied())
                                     + " % complete, destination:" + dest);
                         if(this.status != null) {
-                            this.status.setStatus(stats.getTotalBytesCopied()
+                            this.status.setStatus(stats.getTotalBytesTransferred()
                                                   / (1024 * 1024)
                                                   + " MB copied at "
-                                                  + format.format(stats.getBytesPerSecond()
+                                                  + format.format(stats.getBytesTransferredPerSecond()
                                                                   / (1024 * 1024)) + " MB/sec - "
                                                   + format.format(stats.getPercentCopied())
                                                   + " % complete, destination:" + dest);
@@ -553,6 +561,7 @@ public class HdfsFetcher implements FileFetcher {
                                            source.getSize(),
                                            System.currentTimeMillis() - startTimeMS,
                                            attempt,
+                                           totalBytesReadFromNetwork,
                                            totalBytesRead);
                 logger.info("Completed copy of " + source + " to " + dest);
 
