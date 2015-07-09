@@ -485,7 +485,6 @@ public class HdfsFetcher implements FileFetcher {
         for(int attempt = 0; attempt < maxAttempts; attempt++) {
             boolean success = true;
             long totalBytesRead = 0;
-            long totalBytesReadFromNetwork = 0;
             boolean fsOpened = false;
             try {
 
@@ -550,7 +549,6 @@ public class HdfsFetcher implements FileFetcher {
                                            source.getSize(),
                                            System.currentTimeMillis() - startTimeMS,
                                            attempt,
-                                           totalBytesReadFromNetwork,
                                            totalBytesRead);
                 logger.info("Completed copy of " + source + " to " + dest);
 

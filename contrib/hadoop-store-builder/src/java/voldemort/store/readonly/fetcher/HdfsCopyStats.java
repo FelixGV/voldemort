@@ -201,7 +201,6 @@ public class HdfsCopyStats {
                                      long fileSize,
                                      long timeTakenMS,
                                      int attempts,
-                                     long totalBytesTransferred,
                                      long totalBytesWritten) {
         reportStats(file.getName() + "," + startTimeMS + "," + fileSize + "," + timeTakenMS + ","
                 + attempts + "," + totalBytesTransferred + "," + totalBytesWritten);

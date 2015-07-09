@@ -71,7 +71,6 @@ public class HdfsCopyStatsTest {
                                            r.nextInt(),
                                            r.nextLong(),
                                            r.nextInt(),
-                                           r.nextLong(),
                                            r.nextLong());
 
             }
