@@ -164,7 +164,7 @@ public class EventThrottler {
             double currentRate = rate.measure(rateConfig, now);
             if (currentRate > rateLimit) {
                 double excessRate = currentRate - rateLimit;
-                long sleepTimeMs = Math.round(excessRate / rateLimit) * Time.MS_PER_SECOND;
+                long sleepTimeMs = Math.round(excessRate / rateLimit * Time.MS_PER_SECOND);
                 if(logger.isDebugEnabled())
                     logger.debug("Natural rate is " + currentRate
                             + " events/sec max allowed rate is " + rateLimit
