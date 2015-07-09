@@ -78,7 +78,7 @@ public class EventThrottler {
         this.metricsRepository = new MetricsRepository();
         this.rateConfig = new MetricConfig()
                 .quota(Quota.lessThan(ratePerSecond))
-                .timeWindow(200, TimeUnit.MILLISECONDS)
+                .timeWindow(1, TimeUnit.SECONDS)
                 .samples(5);
         this.rateSensor = metricsRepository.sensor("bytes-throughput");
         this.rate = new Rate(TimeUnit.SECONDS);
