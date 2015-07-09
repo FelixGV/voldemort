@@ -15,10 +15,18 @@
  */
 package voldemort.utils;
 
+import io.tehuti.metrics.MetricConfig;
+import io.tehuti.metrics.MetricsRepository;
+import io.tehuti.metrics.Quota;
+import io.tehuti.metrics.QuotaViolationException;
+import io.tehuti.metrics.Sensor;
+import io.tehuti.metrics.stats.Rate;
 import org.apache.log4j.Logger;
 
 import voldemort.VoldemortException;
 import voldemort.annotations.concurrency.NotThreadsafe;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * A class to throttle Events to a certain rate
@@ -45,6 +53,12 @@ public class EventThrottler {
     private long startTime;
     private long eventsSeenInLastInterval;
 
+    // Tehuti stuff
+    MetricsRepository metricsRepository;
+    Rate rate;
+    Sensor rateSensor;
+    MetricConfig rateConfig;
+
     public EventThrottler(long ratesPerSecond) {
         this(SystemTime.INSTANCE, ratesPerSecond, DEFAULT_CHECK_INTERVAL_MS);
     }
@@ -59,6 +73,16 @@ public class EventThrottler {
         this.ratesPerSecond = ratePerSecond;
         this.eventsSeenInLastInterval = 0L;
         this.startTime = 0L;
+
+        // Tehuti init
+        this.metricsRepository = new MetricsRepository();
+        this.rateConfig = new MetricConfig()
+                .quota(Quota.lessThan(ratePerSecond))
+                .timeWindow(10, TimeUnit.MILLISECONDS)
+                .samples(5);
+        this.rateSensor = metricsRepository.sensor("bytes-throughput");
+        this.rate = new Rate(TimeUnit.SECONDS);
+        rateSensor.add("bytes-throughput.rate", rate, rateConfig);
     }
 
     /**
@@ -72,39 +96,57 @@ public class EventThrottler {
         // permits unbounded bursts of activity within the intervalMs. A
         // controller that has more memory and explicitly bounds peak activity
         // within the intervalMs may be better.
-        long rateLimit = getRate();
+//        long rateLimit = getRate();
+//
+//        if(logger.isDebugEnabled())
+//            logger.debug("Rate = " + rateLimit);
+//
+//        eventsSeenInLastInterval += eventsSeen;
+//        long now = time.getNanoseconds();
+//        long elapsedNs = now - startTime;
+//        // if we have completed an interval AND we have seen some events, maybe
+//        // we should take a little nap
+//        if(elapsedNs > intervalMs * Time.NS_PER_MS && eventsSeenInLastInterval > 0) {
+//            long eventsPerSec = (eventsSeenInLastInterval * Time.NS_PER_SECOND) / elapsedNs;
+//            if(eventsPerSec > rateLimit) {
+//                // solve for the amount of time to sleep to make us hit the
+//                // correct i/o rate
+//                double maxEventsPerMs = rateLimit / (double) Time.MS_PER_SECOND;
+//                long elapsedMs = elapsedNs / Time.NS_PER_MS;
+//                long sleepTime = Math.round(eventsSeenInLastInterval / maxEventsPerMs - elapsedMs);
+//
+//                if(logger.isDebugEnabled())
+//                    logger.debug("Natural rate is " + eventsPerSec
+//                                 + " events/sec max allowed rate is " + rateLimit
+//                                 + " events/sec, sleeping for " + sleepTime + " ms to compensate.");
+//                if(sleepTime > 0) {
+//                    try {
+//                        time.sleep(sleepTime);
+//                    } catch(InterruptedException e) {
+//                        throw new VoldemortException(e);
+//                    }
+//                }
+//            }
+//            startTime = now;
+//            eventsSeenInLastInterval = 0;
+//        }
 
-        if(logger.isDebugEnabled())
-            logger.debug("Rate = " + rateLimit);
-
-        eventsSeenInLastInterval += eventsSeen;
-        long now = time.getNanoseconds();
-        long elapsedNs = now - startTime;
-        // if we have completed an interval AND we have seen some events, maybe
-        // we should take a little nap
-        if(elapsedNs > intervalMs * Time.NS_PER_MS && eventsSeenInLastInterval > 0) {
-            long eventsPerSec = (eventsSeenInLastInterval * Time.NS_PER_SECOND) / elapsedNs;
-            if(eventsPerSec > rateLimit) {
-                // solve for the amount of time to sleep to make us hit the
-                // correct i/o rate
-                double maxEventsPerMs = rateLimit / (double) Time.MS_PER_SECOND;
-                long elapsedMs = elapsedNs / Time.NS_PER_MS;
-                long sleepTime = Math.round(eventsSeenInLastInterval / maxEventsPerMs - elapsedMs);
-
-                if(logger.isDebugEnabled())
-                    logger.debug("Natural rate is " + eventsPerSec
-                                 + " events/sec max allowed rate is " + rateLimit
-                                 + " events/sec, sleeping for " + sleepTime + " ms to compensate.");
-                if(sleepTime > 0) {
-                    try {
-                        time.sleep(sleepTime);
-                    } catch(InterruptedException e) {
-                        throw new VoldemortException(e);
-                    }
+        // Tehuti-based implementation
+        long now = System.currentTimeMillis();
+        long ratePerMs = getRate() / Time.MS_PER_SECOND;
+        long eventsLeftToRecord = eventsSeen;
+        long eventRecordedPerIteration = eventsLeftToRecord / ratePerMs;
+        while (eventsLeftToRecord > 0) {
+            try {
+                eventsLeftToRecord -= eventRecordedPerIteration;
+                rateSensor.record(eventRecordedPerIteration, now);
+            } catch (QuotaViolationException e) {
+                try {
+                    time.sleep(1);
+                } catch (InterruptedException ie) {
+                    throw new VoldemortException(ie);
                 }
             }
-            startTime = now;
-            eventsSeenInLastInterval = 0;
         }
     }
 }
