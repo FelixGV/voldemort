@@ -135,25 +135,20 @@ public class EventThrottler {
         // Tehuti-based implementation
         long ratePerMs = rateLimit / Time.MS_PER_SECOND;
         long eventsLeftToRecord = eventsSeen;
-        long eventRecordedPerIteration = eventsLeftToRecord / ratePerMs;
         if(logger.isDebugEnabled())
             logger.debug("EventThrottler.maybeThrottle: eventsSeen = " + eventsSeen +
                     " , rateLimit = " + rateLimit +
-                    " , ratePerMs = " + ratePerMs +
-                    " . eventsLeftToRecord = " + eventsLeftToRecord +
-                    " , eventRecordedPerIteration = " + eventRecordedPerIteration);
+                    " , ratePerMs = " + ratePerMs);
         long eventsRecordedInThisIteration;
         while (eventsLeftToRecord > 0) {
             try {
-                eventsLeftToRecord -= eventRecordedPerIteration;
-                eventsRecordedInThisIteration = Math.min(eventsLeftToRecord, eventRecordedPerIteration);
-                rateSensor.record(eventRecordedPerIteration);
-                logger.debug("EventThrottler under quota: eventsRecordedInThisIteration = " + eventsRecordedInThisIteration);
+                eventsLeftToRecord -= ratePerMs;
+                eventsRecordedInThisIteration = Math.min(eventsLeftToRecord, ratePerMs);
+                rateSensor.record(eventsRecordedInThisIteration);
             } catch (QuotaViolationException e) {
                 if(logger.isDebugEnabled())
                     logger.debug("EventThrottler over quota: eventsSeen = " + eventsSeen +
-                            " , eventsLeftToRecord = " + eventsLeftToRecord +
-                            " , eventRecordedPerIteration = " + eventRecordedPerIteration);
+                            " , eventsLeftToRecord = " + eventsLeftToRecord);
                 try {
                     time.sleep(1);
                 } catch (InterruptedException ie) {
