@@ -78,7 +78,7 @@ public class EventThrottler {
         this.metricsRepository = new MetricsRepository();
         this.rateConfig = new MetricConfig()
                 .quota(Quota.lessThan(ratePerSecond))
-                .timeWindow(10, TimeUnit.MILLISECONDS)
+                .timeWindow(200, TimeUnit.MILLISECONDS)
                 .samples(5);
         this.rateSensor = metricsRepository.sensor("bytes-throughput");
         this.rate = new Rate(TimeUnit.SECONDS);
@@ -161,14 +161,16 @@ public class EventThrottler {
         try {
             rateSensor.record(eventsSeen, now);
         } catch (QuotaViolationException e) {
-            double currentRate = rate.measure(rateConfig, now);
+            long currentRate = Math.round(rate.measure(rateConfig, now));
             if (currentRate > rateLimit) {
-                double excessRate = currentRate - rateLimit;
+                long excessRate = currentRate - rateLimit;
                 long sleepTimeMs = Math.round(excessRate / rateLimit * Time.MS_PER_SECOND);
                 if(logger.isDebugEnabled())
-                    logger.debug("Natural rate is " + currentRate
-                            + " events/sec max allowed rate is " + rateLimit
-                            + " events/sec, sleeping for " + sleepTimeMs + " ms to compensate.");
+                    logger.debug("Throttler quota exceeded:\n" +
+                            "currentRate = " + currentRate + " events/sec,\n" +
+                            "rateLimit = " + rateLimit + " events/sec,\n" +
+                            "excessRate = " + excessRate + " events/sec,\n" +
+                            "sleeping for " + sleepTimeMs + " ms to compensate.");
                 try {
                     time.sleep(sleepTimeMs);
                 } catch(InterruptedException ie) {
