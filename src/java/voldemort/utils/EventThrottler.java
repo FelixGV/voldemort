@@ -83,6 +83,9 @@ public class EventThrottler {
         this.rateSensor = metricsRepository.sensor("bytes-throughput");
         this.rate = new Rate(TimeUnit.SECONDS);
         rateSensor.add("bytes-throughput.rate", rate, rateConfig);
+
+        if(logger.isDebugEnabled())
+            logger.debug("EventThrottler constructed with ratePerSecond = " + ratePerSecond);
     }
 
     /**
@@ -96,10 +99,10 @@ public class EventThrottler {
         // permits unbounded bursts of activity within the intervalMs. A
         // controller that has more memory and explicitly bounds peak activity
         // within the intervalMs may be better.
-//        long rateLimit = getRate();
-//
-//        if(logger.isDebugEnabled())
-//            logger.debug("Rate = " + rateLimit);
+        long rateLimit = getRate();
+
+        if(logger.isDebugEnabled())
+            logger.debug("EventThrottler.maybeThrottle: rate = " + rateLimit + " . eventsSeen = " + eventsSeen);
 //
 //        eventsSeenInLastInterval += eventsSeen;
 //        long now = time.getNanoseconds();
@@ -133,7 +136,7 @@ public class EventThrottler {
 
         // Tehuti-based implementation
         long now = System.currentTimeMillis();
-        long ratePerMs = getRate() / Time.MS_PER_SECOND;
+        long ratePerMs = rateLimit / Time.MS_PER_SECOND;
         long eventsLeftToRecord = eventsSeen;
         long eventRecordedPerIteration = eventsLeftToRecord / ratePerMs;
         while (eventsLeftToRecord > 0) {
@@ -141,9 +144,10 @@ public class EventThrottler {
                 eventsLeftToRecord -= eventRecordedPerIteration;
                 rateSensor.record(Math.min(eventsLeftToRecord, eventRecordedPerIteration), now);
             } catch (QuotaViolationException e) {
-                logger.debug("EventThrottler exceeded quota: eventsSeen = " + eventsSeen +
-                        " , eventsLeftToRecord = " + eventsLeftToRecord +
-                        " , eventRecordedPerIteration = " + eventRecordedPerIteration);
+                if(logger.isDebugEnabled())
+                    logger.debug("EventThrottler exceeded quota: eventsSeen = " + eventsSeen +
+                            " , eventsLeftToRecord = " + eventsLeftToRecord +
+                            " , eventRecordedPerIteration = " + eventRecordedPerIteration);
                 try {
                     time.sleep(1);
                 } catch (InterruptedException ie) {
