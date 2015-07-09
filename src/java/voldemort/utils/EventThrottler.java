@@ -139,8 +139,11 @@ public class EventThrottler {
         while (eventsLeftToRecord > 0) {
             try {
                 eventsLeftToRecord -= eventRecordedPerIteration;
-                rateSensor.record(eventRecordedPerIteration, now);
+                rateSensor.record(Math.min(eventsLeftToRecord, eventRecordedPerIteration), now);
             } catch (QuotaViolationException e) {
+                logger.debug("EventThrottler exceeded quota: eventsSeen = " + eventsSeen +
+                        " , eventsLeftToRecord = " + eventsLeftToRecord +
+                        " , eventRecordedPerIteration = " + eventRecordedPerIteration);
                 try {
                     time.sleep(1);
                 } catch (InterruptedException ie) {
