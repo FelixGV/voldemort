@@ -11,7 +11,7 @@ import java.io.InputStream;
  */
 public class ThrottledInputStream extends FilterInputStream {
     private final EventThrottler throttler;
-    private HdfsCopyStats stats;
+    private final HdfsCopyStats stats;
     /**
      * Creates a <code>ThrottledInputStream</code>
      *
@@ -30,7 +30,7 @@ public class ThrottledInputStream extends FilterInputStream {
     @Override
     public int read() throws IOException {
         int read = in.read();
-        stats.recordBytesWritten(1);
+        stats.recordBytesTransferred(1);
         if (throttler != null) {
             throttler.maybeThrottle(1);
         }
@@ -40,7 +40,7 @@ public class ThrottledInputStream extends FilterInputStream {
     @Override
     public int read(byte b[], int off, int len) throws IOException {
         int read = in.read(b, off, len);
-        stats.recordBytesWritten(read);
+        stats.recordBytesTransferred(read);
         if (throttler != null) {
             throttler.maybeThrottle(read);
         }
