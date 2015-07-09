@@ -165,7 +165,7 @@ public class HdfsFetcher implements FileFetcher {
             throttlerInfo = "dynamic throttler with initial rate " + dynThrottleLimit.getRate() + " bytes / sec";
         } else {
             this.maxBytesPerSecond = null;
-            throttlerInfo = "no dynamic throttler";
+            throttlerInfo = "no throttler";
         }
         this.reportingIntervalBytes = Utils.notNull(reportingIntervalBytes);
         this.bufferSize = bufferSize;

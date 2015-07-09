@@ -133,27 +133,50 @@ public class EventThrottler {
 //        }
 
         // Tehuti-based implementation
-        long ratePerMs = rateLimit / Time.MS_PER_SECOND;
-        long eventsLeftToRecord = eventsSeen;
-        if(logger.isDebugEnabled())
-            logger.debug("EventThrottler.maybeThrottle: eventsSeen = " + eventsSeen +
-                    " , rateLimit = " + rateLimit +
-                    " , ratePerMs = " + ratePerMs);
-        long eventsRecordedInThisIteration;
-        while (eventsLeftToRecord > 0) {
-            try {
-                eventsLeftToRecord -= ratePerMs;
-                eventsRecordedInThisIteration = Math.min(eventsLeftToRecord, ratePerMs);
-                rateSensor.record(eventsRecordedInThisIteration);
-            } catch (QuotaViolationException e) {
+//        long ratePerMs = rateLimit / Time.MS_PER_SECOND;
+//        long eventsLeftToRecord = eventsSeen;
+//        if(logger.isDebugEnabled())
+//            logger.debug("EventThrottler.maybeThrottle: eventsSeen = " + eventsSeen +
+//                    " , rateLimit = " + rateLimit +
+//                    " , ratePerMs = " + ratePerMs);
+//        long eventsRecordedInThisIteration;
+//        while (eventsLeftToRecord > 0) {
+//            try {
+//                eventsRecordedInThisIteration = Math.min(eventsLeftToRecord, ratePerMs);
+//                eventsLeftToRecord -= eventsRecordedInThisIteration;
+//                rateSensor.record(eventsRecordedInThisIteration);
+//            } catch (QuotaViolationException e) {
+//                if(logger.isDebugEnabled())
+//                    logger.debug("EventThrottler over quota: eventsSeen = " + eventsSeen +
+//                            " , eventsLeftToRecord = " + eventsLeftToRecord);
+//                try {
+//                    time.sleep(1);
+//                } catch (InterruptedException ie) {
+//                    throw new VoldemortException(ie);
+//                }
+//            }
+//        }
+
+        long now = time.getMilliseconds();
+        try {
+            rateSensor.record(eventsSeen, now);
+        } catch (QuotaViolationException e) {
+            double currentRate = rate.measure(rateConfig, now);
+            if (currentRate > rateLimit) {
+                double excessRate = currentRate - rateLimit;
+                long sleepTimeMs = Math.round(excessRate / rateLimit) * Time.MS_PER_SECOND;
                 if(logger.isDebugEnabled())
-                    logger.debug("EventThrottler over quota: eventsSeen = " + eventsSeen +
-                            " , eventsLeftToRecord = " + eventsLeftToRecord);
+                    logger.debug("Natural rate is " + currentRate
+                            + " events/sec max allowed rate is " + rateLimit
+                            + " events/sec, sleeping for " + sleepTimeMs + " ms to compensate.");
                 try {
-                    time.sleep(1);
-                } catch (InterruptedException ie) {
+                    time.sleep(sleepTimeMs);
+                } catch(InterruptedException ie) {
                     throw new VoldemortException(ie);
                 }
+            } else if (logger.isDebugEnabled()) {
+                logger.debug("Weird. Got QuotaValidationException but measured rate not over rateLimit: " +
+                        "currentRate = " + currentRate + " , rateLimit = " + rateLimit);
             }
         }
     }
