@@ -27,6 +27,7 @@ import java.text.NumberFormat;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.GZIPInputStream;
 
 import javax.management.ObjectName;
 
@@ -495,20 +496,20 @@ public class HdfsFetcher implements FileFetcher {
 
                 logger.info("Attempt " + attempt + " at copy of " + source + " to " + dest);
 
-                if(!isCompressed) {
-                    input = fs.open(source.getPath());
-                } else {
+                input = new ThrottledInputStream(fs.open(source.getPath()), throttler, stats);
+
+                if(isCompressed) {
                     // We are already bounded by the "hdfs.fetcher.buffer.size"
                     // specified in the Voldemort config, the default value of
                     // which is 64K. Using the same as the buffer size for
                     // GZIPInputStream as well.
-                    input = new InstrumentedGzipInputStream(fs.open(source.getPath()), this.bufferSize);
+                    input = new GZIPInputStream(input, this.bufferSize);
                 }
                 fsOpened = true;
 
                 output = new BufferedOutputStream(new FileOutputStream(dest));
 
-                int readFromNetwork, read;
+                int read;
 
                 while(true) {
                     read = input.read(buffer);
@@ -523,20 +524,8 @@ public class HdfsFetcher implements FileFetcher {
                         fileCheckSumGenerator.update(buffer, 0, read);
                     }
 
-                    if (isCompressed) {
-                        readFromNetwork = ((InstrumentedGzipInputStream) input).getAndResetBytesReadFromInnerStream();
-                    } else {
-                        readFromNetwork = read;
-                    }
-
-                    // Check if we need to throttle the fetch
-                    if(throttler != null) {
-                        throttler.maybeThrottle(readFromNetwork);
-                    }
-
-                    stats.recordBytes(readFromNetwork, read);
+                    stats.recordBytesWritten(read);
                     totalBytesRead += read;
-                    totalBytesReadFromNetwork += readFromNetwork;
                     if(stats.getBytesTransferredSinceLastReport() > reportingIntervalBytes) {
                         NumberFormat format = NumberFormat.getNumberInstance();
                         format.setMaximumFractionDigits(2);

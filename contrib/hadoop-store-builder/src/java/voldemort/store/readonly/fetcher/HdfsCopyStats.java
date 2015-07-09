@@ -140,11 +140,14 @@ public class HdfsCopyStats {
         initializeStatsFile(destination, enableStatsFile, maxVersionsStatsFile, isFileCopy);
     }
 
-    public void recordBytes(long bytesTransferred, long bytesWritten) {
-        this.totalBytesTransferred += bytesTransferred;
-        this.bytesTransferredSinceLastReport += bytesTransferred;
+    public void recordBytesWritten(long bytesWritten) {
         this.totalBytesWritten += bytesWritten;
         this.bytesWrittenSinceLastReport += bytesWritten;
+    }
+
+    public void recordBytesTransferred(long bytesTransferred) {
+        this.totalBytesTransferred += bytesTransferred;
+        this.bytesTransferredSinceLastReport += bytesTransferred;
     }
 
     public void reset() {
@@ -206,10 +209,10 @@ public class HdfsCopyStats {
 
     public void complete() {
         long nowMS = System.currentTimeMillis() ;
-        reportStats(" Completed at " + nowMS + "MS. Total bytes transferred " + totalBytesTransferred
-                    + " . Expected total bytes " + pathInfo.getTotalSize()
+        reportStats(" Completed at " + nowMS + " MS. Total bytes transferred " + totalBytesTransferred
+                    + " . Expected total bytes transferred " + pathInfo.getTotalSize()
                     + " . Total bytes written " + totalBytesWritten
-                    + " Time taken(MS) " + (nowMS - startTimeMS));
+                    + " . Time taken(MS) " + (nowMS - startTimeMS));
         if(statsFileWriter != null) {
             IOUtils.closeQuietly(statsFileWriter);
         }
@@ -239,7 +242,7 @@ public class HdfsCopyStats {
         return bytesTransferredSinceLastReport / elapsedSecs;
     }
 
-    @JmxGetter(name = "bytesTransferredPerSecond", description = "The rate of persisting data to disk in bytes/second.")
+    @JmxGetter(name = "bytesWrittenPerSecond", description = "The rate of persisting data to disk in bytes/second.")
     public double getBytesWrittenPerSecond() {
         double elapsedSecs = (System.nanoTime() - lastReportNs) / (double) Time.NS_PER_SECOND;
         return bytesWrittenSinceLastReport / elapsedSecs;
