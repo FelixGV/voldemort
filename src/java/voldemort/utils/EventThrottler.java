@@ -167,10 +167,11 @@ public class EventThrottler {
                 long sleepTimeMs = Math.round(excessRate / (double) rateLimit * Time.MS_PER_SECOND);
                 if(logger.isDebugEnabled())
                     logger.debug("Throttler quota exceeded:\n" +
-                            "currentRate = " + currentRate + " events/sec,\n" +
-                            "rateLimit = " + rateLimit + " events/sec,\n" +
-                            "excessRate = " + excessRate + " events/sec,\n" +
-                            "sleeping for " + sleepTimeMs + " ms to compensate.");
+                            "eventsSeen \t= " + eventsSeen + " events/sec,\n" +
+                            "currentRate \t= " + currentRate + " events/sec,\n" +
+                            "rateLimit \t= " + rateLimit + " events/sec,\n" +
+                            "excessRate \t= " + excessRate + " events/sec,\n" +
+                            "sleeping for \t" + sleepTimeMs + " ms to compensate.");
                 try {
                     time.sleep(sleepTimeMs);
                 } catch(InterruptedException ie) {
