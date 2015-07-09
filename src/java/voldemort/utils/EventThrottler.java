@@ -101,8 +101,6 @@ public class EventThrottler {
         // within the intervalMs may be better.
         long rateLimit = getRate();
 
-        if(logger.isDebugEnabled())
-            logger.debug("EventThrottler.maybeThrottle: rate = " + rateLimit + " . eventsSeen = " + eventsSeen);
 //
 //        eventsSeenInLastInterval += eventsSeen;
 //        long now = time.getNanoseconds();
@@ -135,17 +133,25 @@ public class EventThrottler {
 //        }
 
         // Tehuti-based implementation
-        long now = System.currentTimeMillis();
         long ratePerMs = rateLimit / Time.MS_PER_SECOND;
         long eventsLeftToRecord = eventsSeen;
         long eventRecordedPerIteration = eventsLeftToRecord / ratePerMs;
+        if(logger.isDebugEnabled())
+            logger.debug("EventThrottler.maybeThrottle: eventsSeen = " + eventsSeen +
+                    " , rateLimit = " + rateLimit +
+                    " , ratePerMs = " + ratePerMs +
+                    " . eventsLeftToRecord = " + eventsLeftToRecord +
+                    " , eventRecordedPerIteration = " + eventRecordedPerIteration);
+        long eventsRecordedInThisIteration;
         while (eventsLeftToRecord > 0) {
             try {
                 eventsLeftToRecord -= eventRecordedPerIteration;
-                rateSensor.record(Math.min(eventsLeftToRecord, eventRecordedPerIteration), now);
+                eventsRecordedInThisIteration = Math.min(eventsLeftToRecord, eventRecordedPerIteration);
+                rateSensor.record(eventRecordedPerIteration);
+                logger.debug("EventThrottler under quota: eventsRecordedInThisIteration = " + eventsRecordedInThisIteration);
             } catch (QuotaViolationException e) {
                 if(logger.isDebugEnabled())
-                    logger.debug("EventThrottler exceeded quota: eventsSeen = " + eventsSeen +
+                    logger.debug("EventThrottler over quota: eventsSeen = " + eventsSeen +
                             " , eventsLeftToRecord = " + eventsLeftToRecord +
                             " , eventRecordedPerIteration = " + eventRecordedPerIteration);
                 try {
