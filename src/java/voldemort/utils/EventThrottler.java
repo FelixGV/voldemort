@@ -164,7 +164,7 @@ public class EventThrottler {
             long currentRate = Math.round(rate.measure(rateConfig, now));
             if (currentRate > rateLimit) {
                 long excessRate = currentRate - rateLimit;
-                long sleepTimeMs = Math.round(excessRate / rateLimit * Time.MS_PER_SECOND);
+                long sleepTimeMs = Math.round(excessRate / (double) rateLimit * Time.MS_PER_SECOND);
                 if(logger.isDebugEnabled())
                     logger.debug("Throttler quota exceeded:\n" +
                             "currentRate = " + currentRate + " events/sec,\n" +
