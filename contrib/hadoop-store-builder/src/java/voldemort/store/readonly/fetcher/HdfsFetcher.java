@@ -512,6 +512,13 @@ public class HdfsFetcher implements FileFetcher {
 
                 while(true) {
                     read = input.read(buffer);
+
+                    if (logger.isDebugEnabled()) {
+                        if (read > buffer.length) {
+                            logger.debug("read (" + read + ") > buffer.length (" + buffer.length + ") !!");
+                        }
+                    }
+
                     if(read < 0) {
                         break;
                     } else {
