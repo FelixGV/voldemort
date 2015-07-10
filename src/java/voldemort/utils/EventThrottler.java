@@ -31,61 +31,75 @@ import java.util.concurrent.TimeUnit;
 /**
  * A class to throttle Events to a certain rate
  * 
- * This class takes a maximum rate in events/sec and a minimum interval in ms at
- * which to check the rate. The rate is checked every time the interval
- * elapses, and if the events rate exceeds the maximum, the call will block
- * long enough to equalize it.
+ * This class takes a maximum rate in events/sec and a minimum interval over
+ * which to check the rate. The rate is measured over two rolling windows: one
+ * full window, and one in-flight window. Each window is bounded to the provided
+ * interval in ms, therefore, the total interval measured over is up to twice
+ * the provided interval parameter. If the current event rate exceeds the maximum,
+ * the call to {@link #maybeThrottle(int)} will block long enough to equalize it.
  * 
- * This is generalized IoThrottler as it existed before, you can use it to
- * throttle on Bytes read/write,number of entries scanned etc.
- * 
- * 
+ * This is a generalized IoThrottler as it existed before, which can be used to
+ * throttle Bytes read or written, number of entries scanned, etc.
  */
 @NotThreadsafe
 public class EventThrottler {
 
-    private final static Logger logger = Logger.getLogger(EventThrottler.class);
-    private final static long DEFAULT_CHECK_INTERVAL_MS = 50;
+    private static final Logger logger = Logger.getLogger(EventThrottler.class);
+    private static final long DEFAULT_CHECK_INTERVAL_MS = 50;
+    private static final String THROTTLER_NAME = "event-throttler";
 
     private final Time time;
-    private final long ratesPerSecond;
-    private final long intervalMs;
-    private long startTime;
-    private long eventsSeenInLastInterval;
+    private final long maxRatePerSecond;
 
     // Tehuti stuff
-    MetricsRepository metricsRepository;
-    Rate rate;
-    Sensor rateSensor;
-    MetricConfig rateConfig;
+    private static final MetricsRepository sharedMetricsRepository = new MetricsRepository();
+    private final MetricsRepository metricsRepository;
+    private final Rate rate;
+    private final Sensor rateSensor;
+    private final MetricConfig rateConfig;
 
-    public EventThrottler(long ratesPerSecond) {
-        this(SystemTime.INSTANCE, ratesPerSecond, DEFAULT_CHECK_INTERVAL_MS);
+    /**
+     * @param maxRatePerSecond Maximum rate that this throttler should allow
+     */
+    public EventThrottler(long maxRatePerSecond) {
+        this(maxRatePerSecond, DEFAULT_CHECK_INTERVAL_MS, null);
     }
 
-    public long getRate() {
-        return this.ratesPerSecond;
+    /**
+     * @param maxRatePerSecond Maximum rate that this throttler should allow
+     * @param intervalMs Minimum interval over which the rate is measured (maximum is twice that)
+     * @param throttlerName if specified, the throttler will share its limit with others named the same
+     *                      if null, the throttler will be independent of the others
+     */
+    public EventThrottler(long maxRatePerSecond, long intervalMs, String throttlerName) {
+        this(SystemTime.INSTANCE, maxRatePerSecond, intervalMs, throttlerName);
     }
 
-    public EventThrottler(Time time, long ratePerSecond, long intervalMs) {
+    /**
+     * @param time Used to inject a {@link voldemort.MockTime} in tests
+     * @param maxRatePerSecond Maximum rate that this throttler should allow
+     * @param intervalMs Minimum interval over which the rate is measured (maximum is twice that)
+     * @param throttlerName if specified, the throttler will share its limit with others named the same
+     *                      if null, the throttler will be independent of the others
+     */
+    public EventThrottler(Time time, long maxRatePerSecond, long intervalMs, String throttlerName) {
         this.time = time;
-        this.intervalMs = intervalMs;
-        this.ratesPerSecond = ratePerSecond;
-        this.eventsSeenInLastInterval = 0L;
-        this.startTime = 0L;
-
-        // Tehuti init
-        this.metricsRepository = new MetricsRepository();
+        this.maxRatePerSecond = maxRatePerSecond;
+        if (throttlerName == null) {
+            this.metricsRepository = new MetricsRepository();
+            throttlerName = THROTTLER_NAME;
+        } else {
+            this.metricsRepository = sharedMetricsRepository;
+        }
         this.rateConfig = new MetricConfig()
-                .quota(Quota.lessThan(ratePerSecond))
-                .timeWindow(1, TimeUnit.SECONDS)
-                .samples(5);
-        this.rateSensor = metricsRepository.sensor("bytes-throughput");
+                .quota(Quota.lessThan(maxRatePerSecond))
+                .timeWindow(intervalMs, TimeUnit.MILLISECONDS);
+        this.rateSensor = metricsRepository.sensor(throttlerName);
         this.rate = new Rate(TimeUnit.SECONDS);
-        rateSensor.add("bytes-throughput.rate", rate, rateConfig);
+        rateSensor.add(throttlerName + ".rate", rate, rateConfig);
 
         if(logger.isDebugEnabled())
-            logger.debug("EventThrottler constructed with ratePerSecond = " + ratePerSecond);
+            logger.debug("EventThrottler constructed with maxRatePerSecond = " + maxRatePerSecond);
     }
 
     /**
@@ -95,83 +109,31 @@ public class EventThrottler {
      *        determining whether its necessary to sleep.
      */
     public synchronized void maybeThrottle(int eventsSeen) {
-        // TODO: This implements "bang bang" control. This is OK. But, this
-        // permits unbounded bursts of activity within the intervalMs. A
-        // controller that has more memory and explicitly bounds peak activity
-        // within the intervalMs may be better.
-        long rateLimit = getRate();
-
-//
-//        eventsSeenInLastInterval += eventsSeen;
-//        long now = time.getNanoseconds();
-//        long elapsedNs = now - startTime;
-//        // if we have completed an interval AND we have seen some events, maybe
-//        // we should take a little nap
-//        if(elapsedNs > intervalMs * Time.NS_PER_MS && eventsSeenInLastInterval > 0) {
-//            long eventsPerSec = (eventsSeenInLastInterval * Time.NS_PER_SECOND) / elapsedNs;
-//            if(eventsPerSec > rateLimit) {
-//                // solve for the amount of time to sleep to make us hit the
-//                // correct i/o rate
-//                double maxEventsPerMs = rateLimit / (double) Time.MS_PER_SECOND;
-//                long elapsedMs = elapsedNs / Time.NS_PER_MS;
-//                long sleepTime = Math.round(eventsSeenInLastInterval / maxEventsPerMs - elapsedMs);
-//
-//                if(logger.isDebugEnabled())
-//                    logger.debug("Natural rate is " + eventsPerSec
-//                                 + " events/sec max allowed rate is " + rateLimit
-//                                 + " events/sec, sleeping for " + sleepTime + " ms to compensate.");
-//                if(sleepTime > 0) {
-//                    try {
-//                        time.sleep(sleepTime);
-//                    } catch(InterruptedException e) {
-//                        throw new VoldemortException(e);
-//                    }
-//                }
-//            }
-//            startTime = now;
-//            eventsSeenInLastInterval = 0;
-//        }
-
-        // Tehuti-based implementation
-//        long ratePerMs = rateLimit / Time.MS_PER_SECOND;
-//        long eventsLeftToRecord = eventsSeen;
-//        if(logger.isDebugEnabled())
-//            logger.debug("EventThrottler.maybeThrottle: eventsSeen = " + eventsSeen +
-//                    " , rateLimit = " + rateLimit +
-//                    " , ratePerMs = " + ratePerMs);
-//        long eventsRecordedInThisIteration;
-//        while (eventsLeftToRecord > 0) {
-//            try {
-//                eventsRecordedInThisIteration = Math.min(eventsLeftToRecord, ratePerMs);
-//                eventsLeftToRecord -= eventsRecordedInThisIteration;
-//                rateSensor.record(eventsRecordedInThisIteration);
-//            } catch (QuotaViolationException e) {
-//                if(logger.isDebugEnabled())
-//                    logger.debug("EventThrottler over quota: eventsSeen = " + eventsSeen +
-//                            " , eventsLeftToRecord = " + eventsLeftToRecord);
-//                try {
-//                    time.sleep(1);
-//                } catch (InterruptedException ie) {
-//                    throw new VoldemortException(ie);
-//                }
-//            }
-//        }
-
         long now = time.getMilliseconds();
         try {
             rateSensor.record(eventsSeen, now);
         } catch (QuotaViolationException e) {
+            // If we're over quota, we calculate how long to sleep to compensate.
             long currentRate = Math.round(rate.measure(rateConfig, now));
-            if (currentRate > rateLimit) {
-                long excessRate = currentRate - rateLimit;
-                long sleepTimeMs = Math.round(excessRate / (double) rateLimit * Time.MS_PER_SECOND);
-                if(logger.isDebugEnabled())
+            if (currentRate > this.maxRatePerSecond) {
+                long excessRate = currentRate - this.maxRatePerSecond;
+                long sleepTimeMs = Math.round(excessRate / (double) this.maxRatePerSecond * Time.MS_PER_SECOND);
+                if(logger.isDebugEnabled()) {
                     logger.debug("Throttler quota exceeded:\n" +
                             "eventsSeen \t= " + eventsSeen + " in this call of maybeThrotte(),\n" +
                             "currentRate \t= " + currentRate + " events/sec,\n" +
-                            "rateLimit \t= " + rateLimit + " events/sec,\n" +
+                            "maxRatePerSecond \t= " + this.maxRatePerSecond + " events/sec,\n" +
                             "excessRate \t= " + excessRate + " events/sec,\n" +
-                            "sleeping for \t" + sleepTimeMs + " ms to compensate.");
+                            "sleeping for \t" + sleepTimeMs + " ms to compensate.\n" +
+                            "rateConfig.timeWindowMs() = " + rateConfig.timeWindowMs());
+                }
+                if (sleepTimeMs > rateConfig.timeWindowMs()) {
+                    logger.warn("Throttler sleep time (" + sleepTimeMs + " ms) exceeds " +
+                            "window size (" + rateConfig.timeWindowMs() + " ms). This will likely " +
+                            "result in not being able to honor the rate limit accurately.");
+                    // When using the HDFS Fetcher, setting the hdfs.fetcher.buffer.size
+                    // too high could cause this problem.
+                }
                 try {
                     time.sleep(sleepTimeMs);
                 } catch(InterruptedException ie) {
@@ -179,7 +141,7 @@ public class EventThrottler {
                 }
             } else if (logger.isDebugEnabled()) {
                 logger.debug("Weird. Got QuotaValidationException but measured rate not over rateLimit: " +
-                        "currentRate = " + currentRate + " , rateLimit = " + rateLimit);
+                        "currentRate = " + currentRate + " , rateLimit = " + this.maxRatePerSecond);
             }
         }
     }

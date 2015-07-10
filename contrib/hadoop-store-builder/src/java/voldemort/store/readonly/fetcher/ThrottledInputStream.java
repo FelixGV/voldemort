@@ -31,7 +31,7 @@ public class ThrottledInputStream extends FilterInputStream {
     public int read() throws IOException {
         int read = in.read();
         stats.recordBytesTransferred(1);
-        if (throttler != null) {
+        if (throttler != null && read >= 0) {
             throttler.maybeThrottle(1);
         }
         return read;
@@ -41,7 +41,7 @@ public class ThrottledInputStream extends FilterInputStream {
     public int read(byte b[], int off, int len) throws IOException {
         int read = in.read(b, off, len);
         stats.recordBytesTransferred(read);
-        if (throttler != null) {
+        if (throttler != null && read >= 0) {
             throttler.maybeThrottle(read);
         }
         return read;

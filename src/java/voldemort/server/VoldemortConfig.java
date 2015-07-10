@@ -147,7 +147,6 @@ public class VoldemortConfig implements Serializable {
     private String readOnlySearchStrategy;
     private int readOnlyDeleteBackupTimeMs;
     private long readOnlyFetcherMaxBytesPerSecond;
-    private long readOnlyFetcherMinBytesPerSecond;
     private long readOnlyFetcherReportingIntervalBytes;
     private int readOnlyFetchRetryCount;
     private long readOnlyFetchRetryDelayMs;
@@ -349,7 +348,6 @@ public class VoldemortConfig implements Serializable {
                                                                              + "read-only");
         this.readOnlyDeleteBackupTimeMs = props.getInt("readonly.delete.backup.ms", 0);
         this.readOnlyFetcherMaxBytesPerSecond = props.getBytes("fetcher.max.bytes.per.sec", 0);
-        this.readOnlyFetcherMinBytesPerSecond = props.getBytes("fetcher.min.bytes.per.sec", 0);
         this.readOnlyFetcherReportingIntervalBytes = props.getBytes("fetcher.reporting.interval.bytes",
                                                                     REPORTING_INTERVAL_BYTES);
         this.readOnlyFetchRetryCount = props.getInt("fetcher.retry.count", 5);
@@ -2818,24 +2816,6 @@ public class VoldemortConfig implements Serializable {
      */
     public void setReadOnlyFetcherMaxBytesPerSecond(long maxBytesPerSecond) {
         this.readOnlyFetcherMaxBytesPerSecond = maxBytesPerSecond;
-    }
-
-    public long getReadOnlyFetcherMinBytesPerSecond() {
-        return readOnlyFetcherMinBytesPerSecond;
-    }
-
-    /**
-     * Minimum amount of bandwidth that is guaranteed for any read only hadoop
-     * fetch.. New flows will be rejected if the server cannot guarantee this
-     * property for existing flows, if it accepts the new flow.
-     * 
-     * <ul>
-     * <li>Property :"fetcher.min.bytes.per.sec"</li>
-     * <li>Default :0, no lower limit</li>
-     * </ul>
-     */
-    public void setReadOnlyFetcherMinBytesPerSecond(long minBytesPerSecond) {
-        this.readOnlyFetcherMinBytesPerSecond = minBytesPerSecond;
     }
 
     public long getReadOnlyFetcherReportingIntervalBytes() {
