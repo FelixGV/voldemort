@@ -63,7 +63,6 @@ public class HdfsFetcher implements FileFetcher {
     public static final String INDEX_FILE_EXTENSION = ".index";
     public static final String DATA_FILE_EXTENSION = ".data";
     public static final String METADATA_FILE_EXTENSION = ".metadata";
-    private static final int THROTTLE_INTERVAL_WINDOW_MS = 1000;
     private final Long maxBytesPerSecond, reportingIntervalBytes;
     private final int bufferSize;
     private static final AtomicInteger copyCount = new AtomicInteger(0);
@@ -87,8 +86,9 @@ public class HdfsFetcher implements FileFetcher {
     public HdfsFetcher(VoldemortConfig config) {
         this(config.getReadOnlyFetcherMaxBytesPerSecond(),
              config.getReadOnlyFetcherReportingIntervalBytes(),
+             config.getReadOnlyFetcherThrottlerInterval(),
              config.getFetcherBufferSize(),
-                config.getReadOnlyKeytabPath(),
+             config.getReadOnlyKeytabPath(),
              config.getReadOnlyKerberosUser(),
              config.getReadOnlyFetchRetryCount(),
              config.getReadOnlyFetchRetryDelayMs(),
@@ -109,6 +109,7 @@ public class HdfsFetcher implements FileFetcher {
     public HdfsFetcher(Long maxBytesPerSecond, Long reportingIntervalBytes, int bufferSize) {
         this(maxBytesPerSecond,
              reportingIntervalBytes,
+             VoldemortConfig.DEFAULT_FETCHER_THROTTLE_INTERVAL_WINDOW_MS,
              bufferSize,
                 "",
              "",
@@ -121,6 +122,7 @@ public class HdfsFetcher implements FileFetcher {
 
     public HdfsFetcher(Long maxBytesPerSecond,
                        Long reportingIntervalBytes,
+                       int throttlerIntervalMs,
                        int bufferSize,
                        String keytabLocation,
                        String kerberosUser,
@@ -133,7 +135,7 @@ public class HdfsFetcher implements FileFetcher {
         if(maxBytesPerSecond != null && maxBytesPerSecond > 0) {
             this.maxBytesPerSecond = maxBytesPerSecond;
             this.throttler = new EventThrottler(this.maxBytesPerSecond,
-                                                THROTTLE_INTERVAL_WINDOW_MS,
+                                                throttlerIntervalMs,
                                                 "hdfs-fetcher-node-throttler");
             throttlerInfo = "throttler with global rate = " + maxBytesPerSecond + " bytes / sec";
         } else {
@@ -655,8 +657,9 @@ public class HdfsFetcher implements FileFetcher {
         long size = status.getLen();
         HdfsFetcher fetcher = new HdfsFetcher(maxBytesPerSec,
                                               VoldemortConfig.REPORTING_INTERVAL_BYTES,
+                                              VoldemortConfig.DEFAULT_FETCHER_THROTTLE_INTERVAL_WINDOW_MS,
                                               VoldemortConfig.DEFAULT_FETCHER_BUFFER_SIZE,
-                keytabLocation,
+                                              keytabLocation,
                                               kerberosUser,
                                               5,
                                               5000,

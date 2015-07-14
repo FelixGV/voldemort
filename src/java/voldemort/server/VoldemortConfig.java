@@ -16,14 +16,7 @@
 
 package voldemort.server;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.Serializable;
-import java.util.List;
-import java.util.Properties;
-import java.util.Timer;
-import java.util.TimerTask;
-
+import com.google.common.collect.ImmutableList;
 import voldemort.client.ClientConfig;
 import voldemort.client.DefaultStoreClient;
 import voldemort.client.TimeoutConfig;
@@ -63,7 +56,13 @@ import voldemort.utils.Time;
 import voldemort.utils.UndefinedPropertyException;
 import voldemort.utils.Utils;
 
-import com.google.common.collect.ImmutableList;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.List;
+import java.util.Properties;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Configuration parameters for the voldemort server.
@@ -80,6 +79,7 @@ public class VoldemortConfig implements Serializable {
     public static final long REPORTING_INTERVAL_BYTES = 25 * 1024 * 1024;
     public static final int DEFAULT_FETCHER_BUFFER_SIZE = 64 * 1024;
     public static final int DEFAULT_FETCHER_SOCKET_TIMEOUT = 1000 * 60 * 30; // 30 minutes
+    public static final int DEFAULT_FETCHER_THROTTLE_INTERVAL_WINDOW_MS = 1000;
 
     // Kerberos support for read-only fetches (constants)
     public static final String DEFAULT_KERBEROS_PRINCIPAL = "voldemrt";
@@ -148,6 +148,7 @@ public class VoldemortConfig implements Serializable {
     private int readOnlyDeleteBackupTimeMs;
     private long readOnlyFetcherMaxBytesPerSecond;
     private long readOnlyFetcherReportingIntervalBytes;
+    private int readOnlyFetcherThrottlerInterval;
     private int readOnlyFetchRetryCount;
     private long readOnlyFetchRetryDelayMs;
     private int fetcherBufferSize;
@@ -350,6 +351,8 @@ public class VoldemortConfig implements Serializable {
         this.readOnlyFetcherMaxBytesPerSecond = props.getBytes("fetcher.max.bytes.per.sec", 0);
         this.readOnlyFetcherReportingIntervalBytes = props.getBytes("fetcher.reporting.interval.bytes",
                                                                     REPORTING_INTERVAL_BYTES);
+        this.readOnlyFetcherThrottlerInterval = props.getInt("fetcher.throttler.interval",
+                                                             DEFAULT_FETCHER_THROTTLE_INTERVAL_WINDOW_MS);
         this.readOnlyFetchRetryCount = props.getInt("fetcher.retry.count", 5);
         this.readOnlyFetchRetryDelayMs = props.getLong("fetcher.retry.delay.ms", 5000);
         this.fetcherBufferSize = (int) props.getBytes("hdfs.fetcher.buffer.size",
@@ -2808,7 +2811,7 @@ public class VoldemortConfig implements Serializable {
      * Global throttle limit for all hadoop fetches. New flows will dynamically
      * share bandwidth with existing flows, to respect this parameter at all
      * times.
-     * 
+     *
      * <ul>
      * <li>Property :"fetcher.max.bytes.per.sec"</li>
      * <li>Default :0, No throttling</li>
@@ -2816,6 +2819,24 @@ public class VoldemortConfig implements Serializable {
      */
     public void setReadOnlyFetcherMaxBytesPerSecond(long maxBytesPerSecond) {
         this.readOnlyFetcherMaxBytesPerSecond = maxBytesPerSecond;
+    }
+
+    public int getReadOnlyFetcherThrottlerInterval() {
+        return readOnlyFetcherThrottlerInterval;
+    }
+
+    /**
+     * When measuring the download rate of HDFS fetches, this parameter defines
+     * the length in milliseconds of the two rolling windows. This is an
+     * implementation detail which should typically not require any change.
+     *
+     * <ul>
+     * <li>Property :"fetcher.throttler.interval"</li>
+     * <li>Default : 1000 ms</li>
+     * </ul>
+     */
+    public void setReadOnlyFetcherThrottlerInterval(int throttlerInterval) {
+        this.readOnlyFetcherThrottlerInterval = throttlerInterval;
     }
 
     public long getReadOnlyFetcherReportingIntervalBytes() {
