@@ -493,18 +493,13 @@ public class HdfsFetcher implements FileFetcher {
                     if(stats.getBytesTransferredSinceLastReport() > reportingIntervalBytes) {
                         NumberFormat format = NumberFormat.getNumberInstance();
                         format.setMaximumFractionDigits(2);
-                        logger.info(stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
-                                    + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024))
-                                    + " MB/sec - " + format.format(stats.getPercentCopied())
-                                    + " % complete, destination:" + dest);
+                        String message = stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
+                                + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024))
+                                + " MB/sec - " + format.format(stats.getPercentCopied())
+                                + " % complete, destination:" + dest;
+                        logger.info(message);
                         if(this.status != null) {
-                            this.status.setStatus(stats.getTotalBytesTransferred()
-                                                  / (1024 * 1024)
-                                                  + " MB copied at "
-                                                  + format.format(stats.getBytesTransferredPerSecond()
-                                                                  / (1024 * 1024)) + " MB/sec - "
-                                                  + format.format(stats.getPercentCopied())
-                                                  + " % complete, destination:" + dest);
+                            this.status.setStatus(message);
                         }
                         stats.reset();
                     }
