@@ -68,5 +68,4 @@ public class IoThrottlerTest extends TestCase {
                     percentMiss < 0.2);
         }
     }
-
 }

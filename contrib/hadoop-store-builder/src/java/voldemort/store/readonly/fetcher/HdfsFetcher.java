@@ -16,6 +16,27 @@
 
 package voldemort.store.readonly.fetcher;
 
+import org.apache.commons.io.IOUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.log4j.Logger;
+import voldemort.VoldemortException;
+import voldemort.server.VoldemortConfig;
+import voldemort.server.protocol.admin.AdminServiceRequestHandler;
+import voldemort.server.protocol.admin.AsyncOperationStatus;
+import voldemort.store.readonly.FileFetcher;
+import voldemort.store.readonly.checksum.CheckSum;
+import voldemort.store.readonly.checksum.CheckSum.CheckSumType;
+import voldemort.utils.EventThrottler;
+import voldemort.utils.JmxUtils;
+import voldemort.utils.Time;
+import voldemort.utils.Utils;
+
+import javax.management.ObjectName;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -28,29 +49,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
-
-import javax.management.ObjectName;
-
-import org.apache.commons.io.IOUtils;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.CommonConfigurationKeys;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.log4j.Logger;
-
-import voldemort.VoldemortException;
-import voldemort.server.VoldemortConfig;
-import voldemort.server.protocol.admin.AdminServiceRequestHandler;
-import voldemort.server.protocol.admin.AsyncOperationStatus;
-import voldemort.store.readonly.FileFetcher;
-import voldemort.store.readonly.checksum.CheckSum;
-import voldemort.store.readonly.checksum.CheckSum.CheckSumType;
-import voldemort.utils.EventThrottler;
-import voldemort.utils.JmxUtils;
-import voldemort.utils.Time;
-import voldemort.utils.Utils;
 
 /*
  * A fetcher that fetches the store files from HDFS
@@ -132,7 +130,7 @@ public class HdfsFetcher implements FileFetcher {
                        int maxVersionsStatsFile,
                        int socketTimeout) {
         String throttlerInfo = "";
-        if(maxBytesPerSecond != null) {
+        if(maxBytesPerSecond != null && maxBytesPerSecond > 0) {
             this.maxBytesPerSecond = maxBytesPerSecond;
             this.throttler = new EventThrottler(this.maxBytesPerSecond,
                                                 THROTTLE_INTERVAL_WINDOW_MS,

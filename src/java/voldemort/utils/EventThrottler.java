@@ -84,7 +84,13 @@ public class EventThrottler {
                           long maxRatePerSecond,
                           long intervalMs,
                           String throttlerName) {
-        this.time = time;
+        if (maxRatePerSecond <= 0) {
+            throw new IllegalArgumentException("maxRatePerSecond must be a positive number.");
+        }
+        if (intervalMs <= 0) {
+            throw new IllegalArgumentException("intervalMs must be a positive number.");
+        }
+        this.time = Utils.notNull(time);
         this.maxRatePerSecond = maxRatePerSecond;
         this.rateConfig = new MetricConfig()
                 .quota(Quota.lessThan(maxRatePerSecond))
