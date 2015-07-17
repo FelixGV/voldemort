@@ -1,5 +1,23 @@
 package voldemort.store.readonly.swapper;
 
+import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
+import joptsimple.OptionParser;
+import joptsimple.OptionSet;
+import org.apache.commons.io.FileUtils;
+import org.apache.log4j.Logger;
+import voldemort.VoldemortException;
+import voldemort.client.ClientConfig;
+import voldemort.client.protocol.admin.AdminClient;
+import voldemort.client.protocol.admin.AdminClientConfig;
+import voldemort.cluster.Cluster;
+import voldemort.cluster.Node;
+import voldemort.store.readonly.ReadOnlyUtils;
+import voldemort.utils.CmdUtils;
+import voldemort.utils.Time;
+import voldemort.xml.ClusterMapper;
+
 import java.io.File;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -14,29 +32,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.ImmutableSet;
-import joptsimple.OptionParser;
-import joptsimple.OptionSet;
-import org.apache.commons.io.FileUtils;
-import org.apache.log4j.Logger;
-
-import voldemort.VoldemortException;
-import voldemort.client.ClientConfig;
-import voldemort.client.protocol.admin.AdminClient;
-import voldemort.client.protocol.admin.AdminClientConfig;
-import voldemort.cluster.Cluster;
-import voldemort.cluster.Node;
-import voldemort.store.readonly.ReadOnlyUtils;
-
-import com.google.common.base.Joiner;
-import com.google.common.collect.Maps;
-import voldemort.utils.CmdUtils;
-import voldemort.utils.Time;
-import voldemort.xml.ClusterMapper;
-
 public class AdminStoreSwapper {
 
-    private static final Logger logger = Logger.getLogger(AdminStoreSwapper.class);
+    private final Logger logger;
 
     private AdminClient adminClient;
     private long timeoutMs;
@@ -67,6 +65,7 @@ public class AdminStoreSwapper {
         this.timeoutMs = timeoutMs;
         this.rollbackFailedSwap = rollbackFailedSwap;
         this.failedFetchStrategyList = failedFetchStrategyList;
+        this.logger = PrefixedLogger.getLogger(AdminStoreSwapper.class.getName(), "some prefix");
     }
 
 
@@ -322,7 +321,7 @@ public class AdminStoreSwapper {
                 swapper.swapStoreData(storeName, filePath, pushVersion.longValue());
             }
             long end = System.currentTimeMillis();
-            logger.info("Succeeded on all nodes in " + ((end - start) / Time.MS_PER_SECOND)
+            swapper.logger.info("Succeeded on all nodes in " + ((end - start) / Time.MS_PER_SECOND)
                     + " seconds.");
         } finally {
             if(adminClient != null)
