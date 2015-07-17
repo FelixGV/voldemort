@@ -184,8 +184,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             }
         }
 
-        if(this.clusterURLs.size() <= 0)
-            throw new RuntimeException("Number of urls should be atleast 1");
+        int numberOfClusters = this.clusterURLs.size();
+
+        if (numberOfClusters <= 0) {
+            throw new RuntimeException("Number of URLs should be at least 1");
+        }
 
         // Support multiple output dirs if the user mentions only PUSH, no
         // BUILD.
@@ -251,7 +254,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             }
         }
 
-        this.executorService = Executors.newFixedThreadPool(this.clusterURLs.size());
+        this.executorService = Executors.newFixedThreadPool(numberOfClusters);
+
+        log.info("Build and Push Job constructed for " + numberOfClusters + " cluster(s).");
     }
 
     private void invokeHooks(BuildAndPushStatus status) {
@@ -398,12 +403,16 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             this.props = props;
             this.url = url;
             this.buildOutputDir = buildOutputDir;
+
+            log.info("StorePushTask constructed for URL: " + url);
         }
 
         public Boolean call() throws Exception {
+            log.info("StorePushTask.call() invoked for URL: " + url);
             invokeHooks(BuildAndPushStatus.PUSHING, url);
             runPushStore(props, url, buildOutputDir);
             invokeHooks(BuildAndPushStatus.SWAPPED, url);
+            log.info("StorePushTask.call() finished for URL: " + url);
             return true;
         }
 
@@ -466,13 +475,13 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             invokeHooks(BuildAndPushStatus.BUILDING);
                             buildOutputDir = runBuildStore(props, url);
                         } catch(Exception e) {
-                            log.error("Exception during build for url " + url, e);
+                            log.error("Exception during build for URL: " + url, e);
                             exceptions.put(url, e);
                         }
                     }
                 }
                 if (push) {
-                    log.info("Pushing to cluster url " + clusterURLs.get(index));
+                    log.info("Pushing to cluster URL: " + clusterURLs.get(index));
                     // If we are not building and just pushing then we want to get the built
                     // from the dataDirs, or else we will just the one that we built earlier
                     if (!build) {
@@ -493,14 +502,15 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 try {
                     success = task.getValue().get();
                 } catch (RecoverableFailedFetchException e) {
-                    log.warn("There was a problem with some of the fetches, but a swap was still able to go through!", e);
+                    log.warn("There was a problem with some of the fetches, " +
+                            "but a swap was still able to go through for URL: " + url, e);
                     invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
                 } catch(Exception e) {
-                    log.error("Exception during push for url " + url, e);
+                    log.error("Exception during push for URL: " + url, e);
                     exceptions.put(url, e);
                 }
                 if (success) {
-                    log.info("Successfully pushed to: " + url);
+                    log.info("Successfully pushed to URL: " + url);
                 }
             }
 
