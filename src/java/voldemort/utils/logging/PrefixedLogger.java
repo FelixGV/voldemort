@@ -6,13 +6,15 @@ import org.apache.log4j.Logger;
  * A logger implementation which prepends a string to all of its logs.
  */
 public class PrefixedLogger extends Logger {
+    private static final String UNIQUE_NAME_PREFIX_SEPARATOR = "|";
     private final String prefix;
     protected PrefixedLogger(String name, String prefix) {
         super(name);
         this.prefix = prefix;
     }
     public static Logger getLogger(String name, String prefix) {
-        return Logger.getLogger(name, new PrefixedLoggerFactory(prefix));
+        return Logger.getLogger(name + UNIQUE_NAME_PREFIX_SEPARATOR + prefix,
+                                new PrefixedLoggerFactory(prefix));
     }
     private String generateMessage(Object message) {
         return prefix + " : " + message;

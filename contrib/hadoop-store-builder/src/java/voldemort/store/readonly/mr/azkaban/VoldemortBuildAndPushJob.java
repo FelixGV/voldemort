@@ -571,6 +571,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 log.error("Got an error while trying to close " + closeable.toString(), e);
             }
         }
+        this.executorService.shutdownNow();
     }
 
     /**
