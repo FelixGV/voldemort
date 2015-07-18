@@ -199,7 +199,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 this.dataDirs.add(dataDir);
 
         if(this.dataDirs.size() <= 0)
-            throw new RuntimeException("Number of data dirs should be atleast 1");
+            throw new RuntimeException("Number of data dirs should be at least 1");
 
         this.nodeId = props.getInt(PUSH_NODE, 0);
 
@@ -909,7 +909,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 hdfsFetcherProtocol,
                 hdfsFetcherPort,
                 maxNodeFailures,
-                failedFetchStrategyList).run();
+                failedFetchStrategyList,
+                url).run();
     }
 
     /**

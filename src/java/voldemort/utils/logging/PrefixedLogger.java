@@ -1,4 +1,4 @@
-package voldemort.store.readonly.swapper;
+package voldemort.utils.logging;
 
 import org.apache.log4j.Logger;
 
@@ -14,52 +14,55 @@ public class PrefixedLogger extends Logger {
     public static Logger getLogger(String name, String prefix) {
         return Logger.getLogger(name, new PrefixedLoggerFactory(prefix));
     }
+    private String generateMessage(Object message) {
+        return prefix + " : " + message;
+    }
     @Override
     public void error(Object message, Throwable throwable) {
-        super.error(prefix + " " + message, throwable);
+        super.error(generateMessage(message), throwable);
     }
     @Override
     public void error(Object message) {
-        super.error(prefix + " " + message);
+        super.error(generateMessage(message));
     }
     @Override
     public void info(Object message, Throwable throwable) {
-        super.info(prefix + " " + message, throwable);
+        super.info(generateMessage(message), throwable);
     }
     @Override
     public void info(Object message) {
-        super.info(prefix + " " + message);
+        super.info(generateMessage(message));
     }
     @Override
     public void warn(Object message, Throwable throwable) {
-        super.warn(prefix + " " + message, throwable);
+        super.warn(generateMessage(message), throwable);
     }
     @Override
     public void warn(Object message) {
-        super.warn(prefix + " " + message);
+        super.warn(generateMessage(message));
     }
     @Override
     public void debug(Object message, Throwable throwable) {
-        super.debug(prefix + " " + message, throwable);
+        super.debug(generateMessage(message), throwable);
     }
     @Override
     public void debug(Object message) {
-        super.debug(prefix + " " + message);
+        super.debug(generateMessage(message));
     }
     @Override
     public void trace(Object message, Throwable throwable) {
-        super.trace(prefix + " " + message, throwable);
+        super.trace(generateMessage(message), throwable);
     }
     @Override
     public void trace(Object message) {
-        super.trace(prefix + " " + message);
+        super.trace(generateMessage(message));
     }
     @Override
     public void fatal(Object message, Throwable throwable) {
-        super.fatal(prefix + " " + message, throwable);
+        super.fatal(generateMessage(message), throwable);
     }
     @Override
     public void fatal(Object message) {
-        super.fatal(prefix + " " + message);
+        super.fatal(generateMessage(message));
     }
 }

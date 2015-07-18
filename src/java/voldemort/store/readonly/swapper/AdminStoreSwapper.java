@@ -16,6 +16,7 @@ import voldemort.cluster.Node;
 import voldemort.store.readonly.ReadOnlyUtils;
 import voldemort.utils.CmdUtils;
 import voldemort.utils.Time;
+import voldemort.utils.logging.PrefixedLogger;
 import voldemort.xml.ClusterMapper;
 
 import java.io.File;
@@ -52,20 +53,26 @@ public class AdminStoreSwapper {
      * @param timeoutMs Time out in ms
      * @param rollbackFailedSwap Boolean to indicate we want to rollback the
      * @param failedFetchStrategyList list of {@link FailedFetchStrategy} to execute in case of failure
+     * @param clusterName String added as a prefix to all logs. If null, there is no prefix on the logs.
      */
     public AdminStoreSwapper(Cluster cluster,
                              ExecutorService executor,
                              AdminClient adminClient,
                              long timeoutMs,
                              boolean rollbackFailedSwap,
-                             List<FailedFetchStrategy> failedFetchStrategyList) {
+                             List<FailedFetchStrategy> failedFetchStrategyList,
+                             String clusterName) {
         this.cluster = cluster;
         this.executor = executor;
         this.adminClient = adminClient;
         this.timeoutMs = timeoutMs;
         this.rollbackFailedSwap = rollbackFailedSwap;
         this.failedFetchStrategyList = failedFetchStrategyList;
-        this.logger = PrefixedLogger.getLogger(AdminStoreSwapper.class.getName(), "some prefix");
+        if (clusterName == null) {
+            this.logger = Logger.getLogger(AdminStoreSwapper.class.getName());
+        } else {
+            this.logger = PrefixedLogger.getLogger(AdminStoreSwapper.class.getName(), clusterName);
+        }
     }
 
 
@@ -85,7 +92,7 @@ public class AdminStoreSwapper {
                              long timeoutMs,
                              boolean deleteFailedFetch,
                              boolean rollbackFailedSwap) {
-        this(cluster, executor, adminClient, timeoutMs, rollbackFailedSwap, new ArrayList<FailedFetchStrategy>());
+        this(cluster, executor, adminClient, timeoutMs, rollbackFailedSwap, new ArrayList<FailedFetchStrategy>(), null);
         if (deleteFailedFetch) {
             failedFetchStrategyList.add(new DeleteAllFailedFetchStrategy(adminClient));
         }
@@ -102,7 +109,7 @@ public class AdminStoreSwapper {
                              ExecutorService executor,
                              AdminClient adminClient,
                              long timeoutMs) {
-        this(cluster, executor, adminClient, timeoutMs, false, new ArrayList<FailedFetchStrategy>());
+        this(cluster, executor, adminClient, timeoutMs, false, new ArrayList<FailedFetchStrategy>(), null);
     }
 
     public void swapStoreData(String storeName, String basePath, long pushVersion) {
