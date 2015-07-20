@@ -887,7 +887,7 @@ public class AdminClient implements Closeable {
                     AsyncOperationStatus status = getAsyncRequestStatus(nodeId, requestId);
                     long statusResponseTime = System.currentTimeMillis();
                     if(!status.getStatus().equalsIgnoreCase(oldStatus)) {
-                        logger.info("Status from " + nodeName + " : " +  status);
+                        logger.info(nodeName + " : " +  status);
                         oldStatusTime = statusResponseTime;
                         lastStatusReportTime = oldStatusTime;
                     } else if (statusResponseTime - lastStatusReportTime > maxUnchangingStatusDelay) {
@@ -911,7 +911,7 @@ public class AdminClient implements Closeable {
                     }
 
                     if(status.isComplete()) {
-                        logger.info("Completed task on " + nodeName + " : " + status.toString());
+                        logger.info(nodeName + " : " + status);
                         return status.getStatus();
                     }
 
