@@ -79,37 +79,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
     private final Logger log;
 
-    // CONFIG VALUES (and other internal state)
-
-    private final Props props;
-    private List<StoreDefinition> storeDefs;
-    private final String storeName;
-    private final List<String> clusterURLs;
-    private final Map<String, AdminClient> adminClientPerCluster;
-    private final int nodeId;
-    private final List<String> dataDirs;
-    private final boolean isAvroJob;
-    private final String keyFieldName;
-    private final String valueFieldName;
-    private final boolean isAvroVersioned;
-    private final long minNumberOfRecords;
-    private final String hdfsFetcherPort;
-    private final String hdfsFetcherProtocol;
-    private String jsonKeyField;
-    private String jsonValueField;
-    private String reducerOutputCompressionCodec;
-    private final Set<BuildAndPushHook> hooks = new HashSet<BuildAndPushHook>();
-    private final int heartBeatHookIntervalTime;
-    private final HeartBeatHookRunnable heartBeatHookRunnable;
-    private final boolean pushHighAvailability;
-    private final List<Closeable> closeables = Lists.newArrayList();
-    private ExecutorService executorService;
-
-
     // CONFIG NAME CONSTANTS
-
-    private Path sanitizedInputPath = null;
-    private Schema inputPathSchema = null;
 
     // build.required
     public final static String BUILD_INPUT_PATH = "build.input.path";
@@ -160,7 +130,35 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     public final static String HOOKS = "hooks";
     public final static String MIN_NUMBER_OF_RECORDS = "min.number.of.records";
     public final static String REDUCER_OUTPUT_COMPRESS_CODEC = "reducer.output.compress.codec";
-    public static final String REDUCER_OUTPUT_COMPRESS = "reducer.output.compress";
+    public final static String REDUCER_OUTPUT_COMPRESS = "reducer.output.compress";
+
+    // CONFIG VALUES (and other immutable state)
+    private final Props props;
+    private final String storeName;
+    private final List<String> clusterURLs;
+    private final Map<String, AdminClient> adminClientPerCluster;
+    private final int nodeId;
+    private final List<String> dataDirs;
+    private final boolean isAvroJob;
+    private final String keyFieldName;
+    private final String valueFieldName;
+    private final boolean isAvroVersioned;
+    private final long minNumberOfRecords;
+    private final String hdfsFetcherPort;
+    private final String hdfsFetcherProtocol;
+    private final String jsonKeyField;
+    private final String jsonValueField;
+    private final Set<BuildAndPushHook> hooks = new HashSet<BuildAndPushHook>();
+    private final int heartBeatHookIntervalTime;
+    private final HeartBeatHookRunnable heartBeatHookRunnable;
+    private final boolean pushHighAvailability;
+    private final List<Closeable> closeables = Lists.newArrayList();
+    private final ExecutorService executorService;
+
+    // Mutable state
+    private List<StoreDefinition> storeDefs;
+    private Path sanitizedInputPath = null;
+    private Schema inputPathSchema = null;
 
     public VoldemortBuildAndPushJob(String name, azkaban.utils.Props azkabanProps) {
         super(name, Logger.getLogger(name));
@@ -189,8 +187,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             throw new RuntimeException("Number of URLs should be at least 1");
         }
 
-        // Support multiple output dirs if the user mentions only PUSH, no
-        // BUILD.
+        // Support multiple output dirs if the user mentions only PUSH, no BUILD.
         // If user mentions both then should have only one
         String dataDirText = props.getString(BUILD_OUTPUT_DIR);
         for(String dataDir: Utils.COMMA_SEP.split(dataDirText.trim()))
@@ -208,23 +205,24 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         log.info(VOLDEMORT_FETCHER_PROTOCOL + " is set to : " + hdfsFetcherProtocol);
         log.info(VOLDEMORT_FETCHER_PORT + " is set to : " + hdfsFetcherPort);
 
+        // Serialization configs
+
         isAvroJob = props.getBoolean(BUILD_TYPE_AVRO, false);
-
-        // Set default to false
-        // this ensures existing clients who are not aware of the new serializer
-        // type dont bail out
+        // Set default to false, this ensures existing clients who are not aware of
+        // the new serializer type don't bail out
         this.isAvroVersioned = props.getBoolean(AVRO_SERIALIZER_VERSIONED, false);
-
         this.keyFieldName = props.getString(AVRO_KEY_FIELD, null);
-
         this.valueFieldName = props.getString(AVRO_VALUE_FIELD, null);
-
         if(this.isAvroJob) {
             if(this.keyFieldName == null)
                 throw new RuntimeException("The key field must be specified in the properties for the Avro build and push job!");
             if(this.valueFieldName == null)
                 throw new RuntimeException("The value field must be specified in the properties for the Avro build and push job!");
         }
+        this.jsonKeyField = props.getString(KEY_SELECTION, null);
+        this.jsonValueField = props.getString(VALUE_SELECTION, null);
+
+        // Other configs
 
         this.minNumberOfRecords = props.getLong(MIN_NUMBER_OF_RECORDS, 1);
 
@@ -430,8 +428,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             // These two options control the build and push phases of the job respectively.
             boolean build = props.getBoolean(BUILD, true);
             boolean push = props.getBoolean(PUSH, true);
-            jsonKeyField = props.getString(KEY_SELECTION, null);
-            jsonValueField = props.getString(VALUE_SELECTION, null);
 
             checkForPreconditions(build, push);
 
@@ -443,7 +439,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 return;
             }
 
-            reducerOutputCompressionCodec = getMatchingServerSupportedCompressionCodec(nodeId);
+            String reducerOutputCompressionCodec = getMatchingServerSupportedCompressionCodec(nodeId);
             if(reducerOutputCompressionCodec != null) {
                 log.info("Using compression codec: " + reducerOutputCompressionCodec);
                 props.put(REDUCER_OUTPUT_COMPRESS, "true");
