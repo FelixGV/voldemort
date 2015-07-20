@@ -875,7 +875,7 @@ public class AdminClient implements Closeable {
 
             String description = null;
             String oldStatus = "";
-            String nodeName = currentCluster.getNodeById(nodeId).getHost() + " [" + nodeId + "]";
+            String nodeName = currentCluster.getNodeById(nodeId).getHost() + " [id " + nodeId + "]";
 
             // State to detect hung async jobs
             long oldStatusTime = -1;
