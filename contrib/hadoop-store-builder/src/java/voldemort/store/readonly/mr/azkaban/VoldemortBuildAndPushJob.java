@@ -82,7 +82,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     // CONFIG VALUES (and other internal state)
 
     private final Props props;
-    private Cluster cluster;
     private List<StoreDefinition> storeDefs;
     private final String storeName;
     private final List<String> clusterURLs;
@@ -666,7 +665,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 props.containsKey(BUILD_PREFERRED_WRITES) ? props.getInt(BUILD_PREFERRED_WRITES) : null,
                 keySchema,
                 valSchema)));
-        cluster = adminClientPerCluster.get(url).getAdminClientCluster();
     }
     
     /**
@@ -813,6 +811,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             keySchema = getKeySchema();
             valSchema = getValueSchema();
         }
+
+        Cluster cluster = adminClientPerCluster.get(url).getAdminClientCluster();
+
         new VoldemortStoreBuilderJob(
                 this.getId() + "-build-store",
                 props,
@@ -895,6 +896,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             failedFetchStrategyList.add(
                     new DeleteAllFailedFetchStrategy(adminClientPerCluster.get(url)));
         }
+
+        Cluster cluster = adminClientPerCluster.get(url).getAdminClientCluster();
 
         log.info("Push starting for cluster: " + url);
 
@@ -1086,7 +1089,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             : null,
                     returnSchemaObj.keySchema,
                     returnSchemaObj.valSchema)));
-            cluster = adminClientPerCluster.get(url).getAdminClientCluster();
         }
     }
  
