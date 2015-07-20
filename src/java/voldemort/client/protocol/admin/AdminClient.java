@@ -875,7 +875,7 @@ public class AdminClient implements Closeable {
 
             String description = null;
             String oldStatus = "";
-            String nodeName = currentCluster.getNodeById(nodeId).getHost() + " [id " + nodeId + "]";
+            String nodeName = currentCluster.getNodeById(nodeId).briefToString();
 
             // State to detect hung async jobs
             long oldStatusTime = -1;
@@ -887,31 +887,31 @@ public class AdminClient implements Closeable {
                     AsyncOperationStatus status = getAsyncRequestStatus(nodeId, requestId);
                     long statusResponseTime = System.currentTimeMillis();
                     if(!status.getStatus().equalsIgnoreCase(oldStatus)) {
-                        logger.info("Status from node " + nodeName + " " +  status);
+                        logger.info("Status from " + nodeName + " : " +  status);
                         oldStatusTime = statusResponseTime;
                         lastStatusReportTime = oldStatusTime;
                     } else if (statusResponseTime - lastStatusReportTime > maxUnchangingStatusDelay) {
                         // If hung jobs are detected, print out a message periodically
-                        logger.warn("Async Task ID " + requestId + " on node " + nodeName + " has not progressed for "
+                        logger.warn("Async Task ID " + requestId + " on " + nodeName + " has not progressed for "
                                     + ((statusResponseTime - oldStatusTime) / 1000) + " seconds.");
                         lastStatusReportTime = statusResponseTime;
                     }
                     oldStatus = status.getStatus();
 
                     if(higherStatus != null) {
-                        higherStatus.setStatus("Status from node " + nodeName + " ("
+                        higherStatus.setStatus("Status from " + nodeName + " ("
                                                + status.getDescription() + ") - "
                                                + status.getStatus());
                     }
                     description = status.getDescription();
                     if(status.hasException()) {
-                        logger.error("Error waiting for completion of status on node " + nodeName + " : "
+                        logger.error("Error waiting for completion of status on " + nodeName + " : "
                                      + status, status.getException());
                         throw status.getException();
                     }
 
                     if(status.isComplete()) {
-                        logger.info(status.toString() + " Completed on node " + nodeName);
+                        logger.info("Completed task on " + nodeName + " : " + status.toString());
                         return status.getStatus();
                     }
 
@@ -925,13 +925,13 @@ public class AdminClient implements Closeable {
                     }
                 } catch(Exception e) {
                     throw new VoldemortException("Failed while waiting for async task ("
-                                                 + description + ") at node " + nodeName
+                                                 + description + ") at " + nodeName
                                                  + " to finish", e);
                 }
             }
             throw new VoldemortException("Failed to finish task requestId: " + requestId
                                          + " in maxWait " + maxWait + " " + timeUnit.toString()
-                                         + " on node " + nodeName);
+                                         + " on " + nodeName);
         }
 
         /**
