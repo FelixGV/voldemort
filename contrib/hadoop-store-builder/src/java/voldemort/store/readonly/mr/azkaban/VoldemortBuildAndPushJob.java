@@ -401,7 +401,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             this.url = url;
             this.buildOutputDir = buildOutputDir;
 
-            log.info("StorePushTask constructed for URL: " + url);
+            log.debug("StorePushTask constructed for URL: " + url);
         }
 
         public Boolean call() throws Exception {
