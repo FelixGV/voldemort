@@ -407,7 +407,17 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         public Boolean call() throws Exception {
             log.info("StorePushTask.call() invoked for URL: " + url);
             invokeHooks(BuildAndPushStatus.PUSHING, url);
-            runPushStore(props, url, buildOutputDir);
+            try {
+                runPushStore(props, url, buildOutputDir);
+            } catch (RecoverableFailedFetchException e) {
+                log.warn("There was a problem with some of the fetches, " +
+                        "but a swap was still able to go through for URL: " + url, e);
+                invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
+                throw e;
+            } catch(Exception e) {
+                log.error("Exception during push for URL: " + url, e);
+                throw e;
+            }
             invokeHooks(BuildAndPushStatus.SWAPPED, url);
             log.info("StorePushTask.call() finished for URL: " + url);
             return true;
@@ -441,11 +451,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
             String reducerOutputCompressionCodec = getMatchingServerSupportedCompressionCodec(nodeId);
             if(reducerOutputCompressionCodec != null) {
-                log.info("Using compression codec: " + reducerOutputCompressionCodec);
+                log.info("Using block-level compression codec: " + reducerOutputCompressionCodec);
                 props.put(REDUCER_OUTPUT_COMPRESS, "true");
                 props.put(REDUCER_OUTPUT_COMPRESS_CODEC, reducerOutputCompressionCodec);
             } else {
-                log.info("Using no compression");
+                log.info("Using no block-level compression");
             }
 
             // Create a hashmap to capture exception per url
@@ -496,12 +506,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 Boolean success = false;
                 try {
                     success = task.getValue().get();
-                } catch (RecoverableFailedFetchException e) {
-                    log.warn("There was a problem with some of the fetches, " +
-                            "but a swap was still able to go through for URL: " + url, e);
-                    invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
                 } catch(Exception e) {
-                    log.error("Exception during push for URL: " + url, e);
                     exceptions.put(url, e);
                 }
                 if (success) {
