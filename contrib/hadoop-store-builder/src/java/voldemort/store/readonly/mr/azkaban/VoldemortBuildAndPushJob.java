@@ -20,6 +20,7 @@ import azkaban.jobExecutor.AbstractJob;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.protobuf.UninitializedMessageException;
 import org.apache.avro.Schema;
 import org.apache.commons.lang.Validate;
 import org.apache.hadoop.fs.Path;
@@ -407,7 +408,17 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         public Boolean call() throws Exception {
             log.info("StorePushTask.call() invoked for URL: " + url);
             invokeHooks(BuildAndPushStatus.PUSHING, url);
-            runPushStore(props, url, buildOutputDir);
+            try {
+                runPushStore(props, url, buildOutputDir);
+            } catch (RecoverableFailedFetchException e) {
+                log.warn("There was a problem with some of the fetches, " +
+                        "but a swap was still able to go through for URL: " + url, e);
+                invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
+                throw e;
+            } catch(Exception e) {
+                log.error("Exception during push for URL: " + url, e);
+                throw e;
+            }
             invokeHooks(BuildAndPushStatus.SWAPPED, url);
             log.info("StorePushTask.call() finished for URL: " + url);
             return true;
@@ -441,11 +452,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
             String reducerOutputCompressionCodec = getMatchingServerSupportedCompressionCodec(nodeId);
             if(reducerOutputCompressionCodec != null) {
-                log.info("Using compression codec: " + reducerOutputCompressionCodec);
+                log.info("Using block-level compression codec: " + reducerOutputCompressionCodec);
                 props.put(REDUCER_OUTPUT_COMPRESS, "true");
                 props.put(REDUCER_OUTPUT_COMPRESS_CODEC, reducerOutputCompressionCodec);
             } else {
-                log.info("Using no compression");
+                log.info("Using no block-level compression");
             }
 
             // Create a hashmap to capture exception per url
@@ -496,12 +507,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 Boolean success = false;
                 try {
                     success = task.getValue().get();
-                } catch (RecoverableFailedFetchException e) {
-                    log.warn("There was a problem with some of the fetches, " +
-                            "but a swap was still able to go through for URL: " + url, e);
-                    invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
                 } catch(Exception e) {
-                    log.error("Exception during push for URL: " + url, e);
                     exceptions.put(url, e);
                 }
                 if (success) {
@@ -682,11 +688,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                   int replicationFactor,
                                   int requiredReads,
                                   int requiredWrites) {
-        log.info("Verifying store: \n" + newStoreDefXml.toString());
+        log.info("Verifying store against cluster URL: " + url +
+                " (node id " + this.nodeId + ")\n" + newStoreDefXml.toString());
         StoreDefinition newStoreDef = VoldemortUtils.getStoreDef(newStoreDefXml);
-        log.info("Getting store definition from: " + url + " (node id " + this.nodeId + ")");
-        List<StoreDefinition> remoteStoreDefs = adminClientPerCluster.get(url).metadataMgmtOps.getRemoteStoreDefList(this.nodeId)
-                                                                           .getValue();
+        List<StoreDefinition> remoteStoreDefs =
+                adminClientPerCluster.get(url).metadataMgmtOps.getRemoteStoreDefList(this.nodeId).getValue();
         boolean foundStore = false;
         // go over all store defs and see if one has the same name as the store we're trying to build
         for(StoreDefinition remoteStoreDef: remoteStoreDefs) {
@@ -741,18 +747,27 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             if(!remoteStoreDef.equals(newStoreDef)) {
                                 // if we still get a fail, then we know that the store defs don't match for reasons
                                 // OTHER than the key/value serializer
-                                throw new RuntimeException("Your store schema is identical, but the store definition does not match. Have: "
-                                                           + newStoreDef + "\nBut expected: " + remoteStoreDef);
+                                throw new RuntimeException("Your store schema is identical, " +
+                                        "but the store definition does not match on cluster URL: " + url +
+                                        "\nBnP input data has: " + newStoreDef +
+                                        "\nVoldemort server expected: " + remoteStoreDef +
+                                        "\nDiff: " + newStoreDef.diff(remoteStoreDef));
                             }
                         } else {
                             // if the key/value serializers are not equal (even in java, not just json strings),
                             // then fail
-                            throw new RuntimeException("Your store definition does not match the store definition that is already in the cluster. Tried to resolve identical schemas between local and remote, but failed. Have: "
-                                                       + newStoreDef + "\nBut expected: " + remoteStoreDef);
+                            throw new RuntimeException("Your data schema does not match the schema which is already " +
+                                    "defined on cluster URL " + url + "" +
+                                    "\nBnP input data has: " + newStoreDef +
+                                    "\nVoldemort server expected: " + remoteStoreDef +
+                                    "\nDiff: " + newStoreDef.diff(remoteStoreDef));
                         }
                     } else {
-                        throw new RuntimeException("Your store definition does not match the store definition that is already in the cluster. Have: "
-                                                   + newStoreDef + "\nBut expected: " + remoteStoreDef);
+                        throw new RuntimeException("Your store definition does not match the store definition that is " +
+                                "already defined on cluster URL: " + url +
+                                "\nBnP input data has: " + newStoreDef +
+                                "\nVoldemort server expected: " + remoteStoreDef +
+                                "\nDiff: " + newStoreDef.diff(remoteStoreDef));
                     }
                 }
                 foundStore = true;
@@ -775,12 +790,12 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                        + "\" with value being a comma-separated list of email addresses.");
 
         }
-        log.info("Could not find store " + storeName + " on Voldemort. Adding it to all nodes ");
+        log.info("Could not find store " + storeName + " on Voldemort. Adding it to all nodes in cluster URL " + url);
         try {
             adminClientPerCluster.get(url).storeMgmtOps.addStore(newStoreDef);
         }
         catch(VoldemortException ve) {
-            throw new RuntimeException("Exception while adding store", ve);
+            throw new RuntimeException("Exception while adding store to cluster URL" + url, ve);
         }
     }
 
@@ -878,6 +893,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     log.info("pushHighAvailability is enabled for cluster URL: " + url +
                             " with cluster ID: " + serverSettings.getClusterId());
                 }
+            } catch (UninitializedMessageException e) {
+                // Not printing out the exception in the logs as that is a benign error.
+                log.error("The server does not support HA (introduced in release 1.9.18), so " +
+                        "pushHighAvailability will be DISABLED on cluster: " + url);
             } catch (ClassNotFoundException e) {
                 log.error("Failed to find requested FailedFetchLock implementation, so " +
                         "pushHighAvailability will be DISABLED on cluster: " + url, e);
@@ -1110,10 +1129,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                       int requiredWrites,
                                       String serializerName,
                                       KeyValueSchema schemaObj) {
-        log.info("Verifying store: \n" + newStoreDefXml.toString());
+        log.info("Verifying store against cluster URL: " + url +
+                " (node id " + this.nodeId + ")\n" + newStoreDefXml.toString());
         StoreDefinition newStoreDef = VoldemortUtils.getStoreDef(newStoreDefXml);
         // get store def from cluster
-        log.info("Getting store definition from: " + url + " (node id " + this.nodeId + ")");
         List<StoreDefinition> remoteStoreDefs =
                 adminClientPerCluster.get(url).metadataMgmtOps.getRemoteStoreDefList(this.nodeId).getValue();
         boolean foundStore = false;
@@ -1217,25 +1236,28 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             if(!remoteStoreDef.equals(newStoreDef)) {
                                 // if we still get a fail, then we know that the store defs don't match for reasons
                                 // OTHER than the key/value serializer
-                                throw new RuntimeException("Your store schema is identical, but the store definition does not match. Have: "
-                                                           + newStoreDef
-                                                           + "\nBut expected: "
-                                                           + remoteStoreDef);
+                                throw new RuntimeException("Your store schema is identical, " +
+                                        "but the store definition does not match on cluster URL: " + url +
+                                        "\nBnP input data has: " + newStoreDef +
+                                        "\nVoldemort server expected: " + remoteStoreDef +
+                                        "\nDiff: " + newStoreDef.diff(remoteStoreDef));
                             }
 
                         } else {
                             // if the key/value serializers are not equal (even in java, not just json strings),
                             // then fail
-                            throw new RuntimeException("Your store definition does not match the store definition that is already in the cluster. Tried to resolve identical schemas between local and remote, but failed. Have: "
-                                                       + newStoreDef
-                                                       + "\nBut expected: "
-                                                       + remoteStoreDef);
+                            throw new RuntimeException("Your data schema does not match the schema which is already " +
+                                    "defined on cluster URL " + url + "" +
+                                    "\nBnP input data has: " + newStoreDef +
+                                    "\nVoldemort server expected: " + remoteStoreDef +
+                                    "\nDiff: " + newStoreDef.diff(remoteStoreDef));
                         }
                     } else {
-                        throw new RuntimeException("Your store definition does not match the store definition that is already in the cluster. Have: "
-                                                   + newStoreDef
-                                                   + "\nBut expected: "
-                                                   + remoteStoreDef);
+                        throw new RuntimeException("Your store definition does not match the store definition that is " +
+                                "already defined on cluster URL: " + url +
+                                "\nBnP input data has: " + newStoreDef +
+                                "\nVoldemort server expected: " + remoteStoreDef +
+                                "\nDiff: " + newStoreDef.diff(remoteStoreDef));
                     }
                 }
                 foundStore = true;
