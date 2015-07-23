@@ -544,9 +544,9 @@ public class StoreDefinition implements Serializable {
 
     private void addToDiff(String propertyName, String thisValue, String otherValue, StringBuilder sb) {
         sb.append(propertyName);
-        sb.append(" differs; this: ");
+        sb.append(" differs:\n\tthis: ");
         sb.append(thisValue);
-        sb.append(" , other: ");
+        sb.append("\n\tother: ");
         sb.append(otherValue);
         sb.append("\n");
     }
