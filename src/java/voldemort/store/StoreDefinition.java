@@ -454,99 +454,108 @@ public class StoreDefinition implements Serializable {
     }
 
     public String diff(StoreDefinition other) {
+        return diff(other, "this", "other");
+    }
+
+    public String diff(StoreDefinition other, String thisName, String otherName) {
         if (this.equals(other)) {
-            return "StoreDefinitions are identical";
+            return "StoreDefinitions are identical.";
         } else {
             StringBuilder sb = new StringBuilder();
             if (!getName().equals(other.getName())) {
-                addToDiff("Name", this.getName(), other.getName(), sb);
+                addToDiff("Name", this.getName(), other.getName(), sb, thisName, otherName);
             }
             if (!getType().equals(other.getType())) {
-                addToDiff("Type", this.getType(), other.getType(), sb);
+                addToDiff("Type", this.getType(), other.getType(), sb, thisName, otherName);
             }
             if (getReplicationFactor() != other.getReplicationFactor()) {
-                addToDiff("Replication factor", this.getReplicationFactor(), other.getReplicationFactor(), sb);
+                addToDiff("Replication factor", this.getReplicationFactor(), other.getReplicationFactor(), sb, thisName, otherName);
             }
             if (getRequiredReads() != other.getRequiredReads()) {
-                addToDiff("Required reads", this.getRequiredReads(), other.getRequiredReads(), sb);
+                addToDiff("Required reads", this.getRequiredReads(), other.getRequiredReads(), sb, thisName, otherName);
             }
             if (!Objects.equal(getPreferredReads(), other.getPreferredReads())) {
-                addToDiff("Preferred reads", this.getPreferredReads(), other.getPreferredReads(), sb);
+                addToDiff("Preferred reads", this.getPreferredReads(), other.getPreferredReads(), sb, thisName, otherName);
             }
             if (getRequiredWrites() != other.getRequiredWrites()) {
-                addToDiff("Required writes", this.getRequiredWrites(), other.getRequiredWrites(), sb);
+                addToDiff("Required writes", this.getRequiredWrites(), other.getRequiredWrites(), sb, thisName, otherName);
             }
             if (!Objects.equal(getPreferredWrites(), other.getPreferredWrites())) {
-                addToDiff("Preferred writes", this.getPreferredWrites(), other.getPreferredWrites(), sb);
+                addToDiff("Preferred writes", this.getPreferredWrites(), other.getPreferredWrites(), sb, thisName, otherName);
             }
             if (!getKeySerializer().equals(other.getKeySerializer())) {
-                addToDiff("Key serializer", this.getKeySerializer().toString(), other.getKeySerializer().toString(), sb);
+                addToDiff("Key serializer", this.getKeySerializer().toString(), other.getKeySerializer().toString(), sb, thisName, otherName);
             }
             if (!getValueSerializer().equals(other.getValueSerializer())) {
-                addToDiff("Value serializer", this.getValueSerializer().toString(), other.getValueSerializer().toString(), sb);
+                addToDiff("Value serializer", this.getValueSerializer().toString(), other.getValueSerializer().toString(), sb, thisName, otherName);
             }
             if (!Objects.equal(getTransformsSerializer() != null ? getTransformsSerializer(): null,
                     other.getTransformsSerializer() != null ? other.getTransformsSerializer(): null)) {
-                addToDiff("Transforms Serializer", this.getTransformsSerializer().toString(), other.getTransformsSerializer().toString(), sb);
+                addToDiff("Transforms Serializer", this.getTransformsSerializer().toString(), other.getTransformsSerializer().toString(), sb, thisName, otherName);
             }
             if (getRoutingPolicy() != other.getRoutingPolicy()) {
-                addToDiff("Routing policy", this.getRoutingPolicy().toDisplay(), other.getRoutingPolicy().toDisplay(), sb);
+                addToDiff("Routing policy", this.getRoutingPolicy().toDisplay(), other.getRoutingPolicy().toDisplay(), sb, thisName, otherName);
             }
             if (!Objects.equal(getViewTargetStoreName(), other.getViewTargetStoreName())) {
-                addToDiff("View target store name", this.getViewTargetStoreName(), other.getViewTargetStoreName(), sb);
+                addToDiff("View target store name", this.getViewTargetStoreName(), other.getViewTargetStoreName(), sb, thisName, otherName);
             }
             if (!Objects.equal(getValueTransformation() != null ? getValueTransformation().getClass(): null,
                     other.getValueTransformation() != null ? other.getValueTransformation().getClass() : null)) {
                 // FIXME: This comparison is irrelevant, but leaving it as is so that it yields the same result as equals()
-                addToDiff("Value transformation", this.getValueTransformation(), other.getValueTransformation(), sb);
+                addToDiff("Value transformation", this.getValueTransformation(), other.getValueTransformation(), sb, thisName, otherName);
             }
             if (!Objects.equal(getZoneReplicationFactor() != null ? getZoneReplicationFactor().getClass(): null,
                     other.getZoneReplicationFactor() != null ? other.getZoneReplicationFactor().getClass(): null)) {
                 // FIXME: This comparison is irrelevant, but leaving it as is so that it yields the same result as equals()
-                addToDiff("Zone replication factor", this.getZoneReplicationFactor().toString(), other.getZoneReplicationFactor().toString(), sb);
+                addToDiff("Zone replication factor", this.getZoneReplicationFactor().toString(), other.getZoneReplicationFactor().toString(), sb, thisName, otherName);
             }
             if (!Objects.equal(getZoneCountReads(), other.getZoneCountReads())) {
-                addToDiff("Zone count reads", this.getZoneCountReads(), other.getZoneCountReads(), sb);
+                addToDiff("Zone count reads", this.getZoneCountReads(), other.getZoneCountReads(), sb, thisName, otherName);
             }
             if (!Objects.equal(getZoneCountWrites(), other.getZoneCountWrites())) {
-                addToDiff("Zone count writes", this.getZoneCountWrites(), other.getZoneCountWrites(), sb);
+                addToDiff("Zone count writes", this.getZoneCountWrites(), other.getZoneCountWrites(), sb, thisName, otherName);
             }
             if (!Objects.equal(getRetentionDays(), other.getRetentionDays())) {
-                addToDiff("Retention days", this.getRetentionDays(), other.getRetentionDays(), sb);
+                addToDiff("Retention days", this.getRetentionDays(), other.getRetentionDays(), sb, thisName, otherName);
             }
             if (!Objects.equal(getRetentionScanThrottleRate(), other.getRetentionScanThrottleRate())) {
-                addToDiff("Retention scan throttle rate", this.getRetentionScanThrottleRate(), other.getRetentionScanThrottleRate(), sb);
+                addToDiff("Retention scan throttle rate", this.getRetentionScanThrottleRate(), other.getRetentionScanThrottleRate(), sb, thisName, otherName);
             }
             if (!Objects.equal(getSerializerFactory() != null ? getSerializerFactory() : null,
                     other.getSerializerFactory() != null ? other.getSerializerFactory(): null)) {
-                addToDiff("Serialization Factory", this.getSerializerFactory(), other.getSerializerFactory(), sb);
+                addToDiff("Serialization Factory", this.getSerializerFactory(), other.getSerializerFactory(), sb, thisName, otherName);
             }
             if (!Objects.equal(getHintedHandoffStrategyType(), other.getHintedHandoffStrategyType())) {
-                addToDiff("Hinted handoff strategy", this.getHintedHandoffStrategyType().toDisplay(), other.getHintedHandoffStrategyType().toDisplay(), sb);
+                addToDiff("Hinted handoff strategy", this.getHintedHandoffStrategyType().toDisplay(), other.getHintedHandoffStrategyType().toDisplay(), sb, thisName, otherName);
             }
             if (!Objects.equal(getHintPrefListSize(), other.getHintPrefListSize())) {
-                addToDiff("Hinted preference list size", this.getHintPrefListSize(), other.getHintPrefListSize(), sb);
+                addToDiff("Hinted preference list size", this.getHintPrefListSize(), other.getHintPrefListSize(), sb, thisName, otherName);
             }
             if (!Objects.equal(getMemoryFootprintMB(), other.getMemoryFootprintMB())) {
-                addToDiff("Memory footprint (MB)", this.getMemoryFootprintMB(), other.getMemoryFootprintMB(), sb);
+                addToDiff("Memory footprint (MB)", this.getMemoryFootprintMB(), other.getMemoryFootprintMB(), sb, thisName, otherName);
             }
+            sb.append("Every other properties are identical.");
             return sb.toString();
         }
     }
 
-    private void addToDiff(String propertyName, long thisValue, long otherValue, StringBuilder sb) {
-        addToDiff(propertyName, Long.toString(thisValue), Long.toString(otherValue), sb);
+    private void addToDiff(String propertyName, long thisValue, long otherValue, StringBuilder sb, String thisName, String otherName) {
+        addToDiff(propertyName, Long.toString(thisValue), Long.toString(otherValue), sb, thisName, otherName);
     }
 
-    private void addToDiff(String propertyName, int thisValue, int otherValue, StringBuilder sb) {
-        addToDiff(propertyName, Integer.toString(thisValue), Integer.toString(otherValue), sb);
+    private void addToDiff(String propertyName, int thisValue, int otherValue, StringBuilder sb, String thisName, String otherName) {
+        addToDiff(propertyName, Integer.toString(thisValue), Integer.toString(otherValue), sb, thisName, otherName);
     }
 
-    private void addToDiff(String propertyName, String thisValue, String otherValue, StringBuilder sb) {
+    private void addToDiff(String propertyName, String thisValue, String otherValue, StringBuilder sb, String thisName, String otherName) {
         sb.append(propertyName);
-        sb.append(" differs:\n\tthis: ");
+        sb.append(" differs:\n\t");
+        sb.append(thisName);
+        sb.append(":\t");
         sb.append(thisValue);
-        sb.append("\n\tother: ");
+        sb.append("\n\t");
+        sb.append(otherName);
+        sb.append(":\t");
         sb.append(otherValue);
         sb.append("\n");
     }
