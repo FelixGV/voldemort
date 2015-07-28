@@ -241,6 +241,10 @@ public class HdfsFetcher implements FileFetcher {
 
                 try {
                     fs = path.getFileSystem(config);
+
+                    // This is just a simple filesystem operation to see if the FS is properly initialized
+                    fs.isFile(path);
+
                     isValidFilesystem = true;
                 } catch(Exception e) {
                     logger.error("Got an exception while getting the filesystem object. ", e);
