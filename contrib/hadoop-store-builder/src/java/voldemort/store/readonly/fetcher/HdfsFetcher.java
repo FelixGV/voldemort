@@ -230,14 +230,14 @@ public class HdfsFetcher implements FileFetcher {
                     throw new VoldemortException("Error in getting Hadoop filesystem. Invalid keytab file path.");
                 }
 
-                if (attempt > 0) {
+                // if (attempt > 0) {
                     // If the first attempt failed, then we'll try logging in
                     UserGroupInformation.setConfiguration(config);
                     UserGroupInformation.loginUserFromKeytab(HdfsFetcher.kerberosPrincipal,
                                                              HdfsFetcher.keytabPath);
                     logger.info("I've logged in to Hadoop as "
                             + UserGroupInformation.getCurrentUser().getUserName());
-                }
+                // }
 
                 try {
                     fs = path.getFileSystem(config);
