@@ -222,13 +222,6 @@ public class HdfsFetcher implements FileFetcher {
         FileSystem fs = null;
 
         if(HdfsFetcher.keytabPath.length() > 0 && !isHftpBasedFetch) {
-
-            /*
-             * We're seeing intermittent errors while trying to get the Hadoop
-             * filesystem in a privileged doAs block. This happens when we fetch
-             * the files over hdfs or webhdfs. This retry loop is inserted here
-             * as a temporary measure.
-             */
             for(int attempt = 0; attempt < maxAttempts; attempt++) {
                 boolean isValidFilesystem = false;
 
@@ -237,59 +230,29 @@ public class HdfsFetcher implements FileFetcher {
                     throw new VoldemortException("Error in getting Hadoop filesystem. Invalid keytab file path.");
                 }
 
-                /*
-                 * The Hadoop path for getting a Filesystem object in a
-                 * privileged doAs block is not thread safe. This might be
-                 * causing intermittent NPE exceptions. Adding a synchronized
-                 * block.
-                 */
-                synchronized(this) {
-                    /*
-                     * First login using the specified principal and keytab file
-                     */
+                if (attempt > 0) {
+                    // If the first attempt failed, then we'll try logging in
                     UserGroupInformation.setConfiguration(config);
                     UserGroupInformation.loginUserFromKeytab(HdfsFetcher.kerberosPrincipal,
                                                              HdfsFetcher.keytabPath);
+                    logger.info("I've logged in to Hadoop as "
+                            + UserGroupInformation.getCurrentUser().getUserName());
+                }
 
-                    /*
-                     * If login is successful, get the filesystem object. NOTE:
-                     * Ideally we do not need a doAs block for this. Consider
-                     * removing it in the future once the Hadoop jars have the
-                     * corresponding patch (tracked in the Hadoop Apache
-                     * project: HDFS-3367)
-                     */
-                    try {
-                        logger.info("I've logged in and am now Doasing as "
-                                    + UserGroupInformation.getCurrentUser().getUserName());
-                        fs = UserGroupInformation.getCurrentUser()
-                                                 .doAs(new PrivilegedExceptionAction<FileSystem>() {
-
-                                                     @Override
-                                                     public FileSystem run() throws Exception {
-                                                         FileSystem fs = path.getFileSystem(config);
-                                                         return fs;
-                                                     }
-                                                 });
-                        isValidFilesystem = true;
-                    } catch(InterruptedException e) {
-                        logger.error(e.getMessage(), e);
-                    } catch(Exception e) {
-                        logger.error("Got an exception while getting the filesystem object: ");
-                        logger.error("Exception class : " + e.getClass());
-                        e.printStackTrace();
-                        for(StackTraceElement et: e.getStackTrace()) {
-                            logger.error(et.toString());
-                        }
-                    }
+                try {
+                    fs = path.getFileSystem(config);
+                    isValidFilesystem = true;
+                } catch(Exception e) {
+                    logger.error("Got an exception while getting the filesystem object. ", e);
                 }
 
                 if(isValidFilesystem) {
+                    if (attempt == 0) {
+                        logger.info("Got valid Hadoop filesystem on the first attempt (without re-logging in).");
+                    }
                     break;
                 } else if(attempt < maxAttempts - 1) {
-                    logger.error("Attempt#" + attempt
-                                 + " Could not get a valid Filesystem object. Trying again in "
-                                 + retryDelayMs + " ms");
-                    sleepForRetryDelayMs();
+                    sleepForRetryDelayMs(attempt);
                 }
             }
         } else {
@@ -369,12 +332,18 @@ public class HdfsFetcher implements FileFetcher {
         }
     }
 
-    private void sleepForRetryDelayMs() {
+    private void sleepForRetryDelayMs(int attemptNumber) {
         if(retryDelayMs > 0) {
+            // Doing random back off so that all nodes do not end up swarming the KDC infra
+            long randomDelay = (long) (Math.random() * retryDelayMs + retryDelayMs);
+
+            logger.error("Could not get a valid Filesystem object on attempt # " + attemptNumber +
+                    " / " + maxAttempts + ". Trying again in " + randomDelay + " ms.");
             try {
                 Thread.sleep(retryDelayMs);
             } catch(InterruptedException ie) {
                 logger.error("Fetcher interrupted while waiting to retry", ie);
+                Thread.currentThread().interrupt();
             }
         }
     }
