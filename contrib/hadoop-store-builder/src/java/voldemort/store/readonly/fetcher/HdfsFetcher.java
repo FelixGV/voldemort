@@ -260,18 +260,19 @@ public class HdfsFetcher implements FileFetcher {
                      * project: HDFS-3367)
                      */
                     try {
-                        logger.info("I am DoAsing as " + currentHadoopUser.getUserName());
-                        fs = currentHadoopUser.doAs(new PrivilegedExceptionAction<FileSystem>() {
-                            @Override
-                            public FileSystem run() throws Exception {
-                                FileSystem fs = path.getFileSystem(config);
-                                logger.info("Got FileSystem instance for URI: " + fs.getUri());
-                                return fs;
-                            }
-                        });
+                        fs = path.getFileSystem(config);
+//                        logger.info("I am DoAsing as " + currentHadoopUser.getUserName());
+//                        fs = currentHadoopUser.doAs(new PrivilegedExceptionAction<FileSystem>() {
+//                            @Override
+//                            public FileSystem run() throws Exception {
+//                                FileSystem fs = path.getFileSystem(config);
+//                                logger.debug("Got FileSystem instance for URI: " + fs.getUri());
+//                                return fs;
+//                            }
+//                        });
                         isValidFilesystem = true;
-                    } catch(InterruptedException e) {
-                        logger.error("Got interrupted while getting the filesystem object.", e);
+//                    } catch(InterruptedException e) {
+//                        logger.error("Got interrupted while getting the filesystem object.", e);
                     } catch(Exception e) {
                         logger.error("Got an exception while getting the filesystem object.", e);
                     }
