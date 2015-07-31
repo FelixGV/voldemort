@@ -262,11 +262,11 @@ public class HdfsFetcher implements FileFetcher {
                      */
                     try {
                         logger.info("I am DoAsing as " + currentHadoopUser.getUserName());
-                        currentHadoopUser.doAs(new PrivilegedExceptionAction<FileSystem>() {
+                        fs = currentHadoopUser.doAs(new PrivilegedExceptionAction<FileSystem>() {
                             @Override
                             public FileSystem run() throws Exception {
                                 FileSystem fs = path.getFileSystem(config);
-                                logger.info("Got FileSystem instance: " + fs.toString());
+                                logger.info("Got FileSystem instance for URI: " + fs.getUri());
                                 return fs;
                             }
                         });
