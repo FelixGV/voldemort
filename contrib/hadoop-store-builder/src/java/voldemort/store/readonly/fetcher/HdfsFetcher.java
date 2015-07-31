@@ -266,6 +266,7 @@ public class HdfsFetcher implements FileFetcher {
                             @Override
                             public FileSystem run() throws Exception {
                                 FileSystem fs = path.getFileSystem(config);
+                                logger.info("Got FileSystem instance: " + fs.toString());
                                 return fs;
                             }
                         });
