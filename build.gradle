@@ -5,15 +5,6 @@ apply plugin: 'idea'
 apply plugin: 'eclipse'
 apply plugin: 'war'
 
-// Used for shadowing dependencies
-buildscript {
-  repositories { jcenter() }
-  dependencies {
-    classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.0'
-  }
-}
-apply plugin: 'com.github.johnrengelman.shadow'
-
 def String getProjectProperty(String propertyName) {
     String propertyValue = "null"
     if (hasProperty(propertyName)) {
@@ -66,6 +57,7 @@ compileJava.options.debug = true
 repositories {
     mavenCentral()
     maven {
+        // For Hadoop dependencies
         url "https://repository.cloudera.com/artifactory/cloudera-repos/"
     }
     flatDir { dirs privateLibDir }
@@ -422,17 +414,6 @@ dependencies {
     // Used for reading XML files and Document.
     compile 'jdom:jdom:1.1'
 
-    // je- BDB je 5.0.88 is not available in maven central repository.
-    // Could be possibly found in oracle maven repository, but not sure
-    /*
-     groupId>com.sleepycat</groupId>
-     <artifactId>je</artifactId>
-     <version>3.3.75</version>
-     groupId>com.sleepycat</groupId>
-     <artifactId>je</artifactId>
-     <version>3.3.75</version>
-     */
-
     // Jetty is used for HttpService and tests. Jetty Util is used for QueuedThreadPool class.
     compile 'org.mortbay.jetty:jetty-util:6.1.18'
     compile 'org.mortbay.jetty:jetty:6.1.18'
@@ -451,11 +432,6 @@ dependencies {
 
     // Used for argument command line parsing
     compile 'net.sf.jopt-simple:jopt-simple:4.6'
-
-    // INTERNAL_LIBS thrift is one of the supported serialization format.
-    // libthrift 0.5 version is not found in the maven central repository.
-    // The closest version available is 0.6.1
-    // libthrift-0.5.0.jar
 
     // log4j - logger used in almost all files
     compile 'log4j:log4j:1.2.15'
@@ -520,17 +496,14 @@ dependencies {
     // and we end up with 2 versions of few jars like ( log4j, servlet etc. )
     compile 'commons-configuration:commons-configuration:1.6'
     compile('org.apache.hadoop:hadoop-core:2.3.0-mr1-cdh5.1.5') {
-        // transitive = false
         exclude group: 'com.google.protobuf'
         exclude group: 'org.apache.avro'
     }
     compile('org.apache.hadoop:hadoop-common:2.3.0-cdh5.1.5') {
-        // transitive = false
         exclude group: 'com.google.protobuf'
         exclude group: 'org.apache.avro'
     }
     compile('org.apache.hadoop:hadoop-hdfs:2.3.0-cdh5.1.5') {
-        // transitive = false
         exclude group: 'com.google.protobuf'
         exclude group: 'org.apache.avro'
     }
@@ -554,25 +527,6 @@ dependencies {
     // rocksdb from maven
     compile 'org.rocksdb:rocksdbjni:3.6.2'
 }
-
-// shadowJar {
-//     from sourceSets.main.output, sourceSets.contrib.output, sourceSets.main.resources
-// 
-//     // Required when working in an Hadoop 2.x environment
-//     dependencies {
-//         include(dependency('org.apache.avro:avro:1.4.0'))
-//         include(dependency('com.google.protobuf:protobuf-java:2.3.0'))
-//     }
-//     relocate 'com.google.protobuf', 'voldemort.shadow.com.google.protobuf'
-//     relocate 'org.apache.avro', 'voldemort.shadow.org.apache.avro'
-//     exclude("**/org/apache/commons/**")
-//     exclude("**/org/apache/hadoop/**")
-//     exclude("**/com/linkedin/azkaban**")
-//     exclude("**/com/linkedin/hadoop**")
-//     exclude("hdfs*.xml")
-//     exclude("mapred*.xml")
-//     exclude("core*.xml")
-// }
 
 eclipse {
     project {
