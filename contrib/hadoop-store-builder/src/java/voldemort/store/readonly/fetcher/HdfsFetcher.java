@@ -196,7 +196,7 @@ public class HdfsFetcher implements FileFetcher {
                     + HdfsFetcher.keytabPath + " , kerberos principal = "
                     + HdfsFetcher.kerberosPrincipal);
 
-        if(hadoopConfigPath.length() > 0 && !isHftpBasedFetch) {
+        if(hadoopConfigPath.length() > 0) {
 
             config.addResource(new Path(hadoopConfigPath + "/core-site.xml"));
             config.addResource(new Path(hadoopConfigPath + "/hdfs-site.xml"));
@@ -220,10 +220,9 @@ public class HdfsFetcher implements FileFetcher {
             throws IOException {
         final Configuration config = getConfiguration(sourceFileUrl, hadoopConfigPath);
         final Path path = new Path(sourceFileUrl);
-        boolean isHftpBasedFetch = isHftpBasedPath(sourceFileUrl);
         FileSystem fs = null;
 
-        if(HdfsFetcher.keytabPath.length() > 0 && !isHftpBasedFetch) {
+        if(HdfsFetcher.keytabPath.length() > 0) {
 
             /*
              * We're seeing intermittent errors while trying to get the Hadoop
