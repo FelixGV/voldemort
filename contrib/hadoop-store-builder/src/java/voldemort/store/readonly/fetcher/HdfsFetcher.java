@@ -72,6 +72,8 @@ public class HdfsFetcher implements FileFetcher {
 
     private static Boolean allowFetchOfFiles = false;
 
+    private static UserGroupInformation currentHadoopUser;
+
     /**
      * this is the constructor invoked via reflection from
      * {@link AdminServiceRequestHandler#setFetcherClass(voldemort.server.VoldemortConfig)}
@@ -243,14 +245,14 @@ public class HdfsFetcher implements FileFetcher {
                  * causing intermittent NPE exceptions. Adding a synchronized
                  * block.
                  */
-                synchronized(this) {
-                    /*
-                     * First login using the specified principal and keytab file
-                     */
-                    UserGroupInformation.setConfiguration(config);
-                    UserGroupInformation.loginUserFromKeytab(HdfsFetcher.kerberosPrincipal,
-                                                             HdfsFetcher.keytabPath);
-
+                synchronized (currentHadoopUser) {
+                    if (currentHadoopUser == null) {
+                        // Login should only need to happen once during the lifetime of the JVM
+                        UserGroupInformation.setConfiguration(config);
+                        UserGroupInformation.loginUserFromKeytab(HdfsFetcher.kerberosPrincipal, HdfsFetcher.keytabPath);
+                        currentHadoopUser = UserGroupInformation.getCurrentUser();
+                        logger.info("I have logged in as " + currentHadoopUser.getUserName());
+                    }
                     /*
                      * If login is successful, get the filesystem object. NOTE:
                      * Ideally we do not need a doAs block for this. Consider
@@ -259,27 +261,19 @@ public class HdfsFetcher implements FileFetcher {
                      * project: HDFS-3367)
                      */
                     try {
-                        logger.info("I've logged in and am now Doasing as "
-                                    + UserGroupInformation.getCurrentUser().getUserName());
-                        fs = UserGroupInformation.getCurrentUser()
-                                                 .doAs(new PrivilegedExceptionAction<FileSystem>() {
-
-                                                     @Override
-                                                     public FileSystem run() throws Exception {
-                                                         FileSystem fs = path.getFileSystem(config);
-                                                         return fs;
-                                                     }
-                                                 });
+                        logger.info("I am DoAsing as " + currentHadoopUser.getUserName());
+                        currentHadoopUser.doAs(new PrivilegedExceptionAction<FileSystem>() {
+                            @Override
+                            public FileSystem run() throws Exception {
+                                FileSystem fs = path.getFileSystem(config);
+                                return fs;
+                            }
+                        });
                         isValidFilesystem = true;
                     } catch(InterruptedException e) {
-                        logger.error(e.getMessage(), e);
+                        logger.error("Got interrupted while getting the filesystem object.", e);
                     } catch(Exception e) {
-                        logger.error("Got an exception while getting the filesystem object: ");
-                        logger.error("Exception class : " + e.getClass());
-                        e.printStackTrace();
-                        for(StackTraceElement et: e.getStackTrace()) {
-                            logger.error(et.toString());
-                        }
+                        logger.error("Got an exception while getting the filesystem object.", e);
                     }
                 }
 
