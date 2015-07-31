@@ -245,7 +245,7 @@ public class HdfsFetcher implements FileFetcher {
                  * causing intermittent NPE exceptions. Adding a synchronized
                  * block.
                  */
-                synchronized (currentHadoopUser) {
+                synchronized (HdfsFetcher.class) {
                     if (currentHadoopUser == null) {
                         // Login should only need to happen once during the lifetime of the JVM
                         UserGroupInformation.setConfiguration(config);
