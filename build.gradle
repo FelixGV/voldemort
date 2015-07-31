@@ -520,13 +520,19 @@ dependencies {
     // and we end up with 2 versions of few jars like ( log4j, servlet etc. )
     compile 'commons-configuration:commons-configuration:1.6'
     compile('org.apache.hadoop:hadoop-core:2.3.0-mr1-cdh5.1.5') {
-        transitive = false
+        // transitive = false
+        exclude group: 'com.google.protobuf'
+        exclude group: 'org.apache.avro'
     }
     compile('org.apache.hadoop:hadoop-common:2.3.0-cdh5.1.5') {
-        transitive = false
+        // transitive = false
+        exclude group: 'com.google.protobuf'
+        exclude group: 'org.apache.avro'
     }
     compile('org.apache.hadoop:hadoop-hdfs:2.3.0-cdh5.1.5') {
-        transitive = false
+        // transitive = false
+        exclude group: 'com.google.protobuf'
+        exclude group: 'org.apache.avro'
     }
 
     compile 'com.linkedin.pegasus:r2:1.8.3'
@@ -549,24 +555,24 @@ dependencies {
     compile 'org.rocksdb:rocksdbjni:3.6.2'
 }
 
-shadowJar {
-    from sourceSets.main.output, sourceSets.contrib.output, sourceSets.main.resources
-
-    // Required when working in an Hadoop 2.x environment
-    dependencies {
-        include(dependency('org.apache.avro:avro:1.4.0'))
-        include(dependency('com.google.protobuf:protobuf-java:2.3.0'))
-    }
-    relocate 'com.google.protobuf', 'voldemort.shadow.com.google.protobuf'
-    relocate 'org.apache.avro', 'voldemort.shadow.org.apache.avro'
-    exclude("**/org/apache/commons/**")
-    exclude("**/org/apache/hadoop/**")
-    exclude("**/com/linkedin/azkaban**")
-    exclude("**/com/linkedin/hadoop**")
-    exclude("hdfs*.xml")
-    exclude("mapred*.xml")
-    exclude("core*.xml")
-}
+// shadowJar {
+//     from sourceSets.main.output, sourceSets.contrib.output, sourceSets.main.resources
+// 
+//     // Required when working in an Hadoop 2.x environment
+//     dependencies {
+//         include(dependency('org.apache.avro:avro:1.4.0'))
+//         include(dependency('com.google.protobuf:protobuf-java:2.3.0'))
+//     }
+//     relocate 'com.google.protobuf', 'voldemort.shadow.com.google.protobuf'
+//     relocate 'org.apache.avro', 'voldemort.shadow.org.apache.avro'
+//     exclude("**/org/apache/commons/**")
+//     exclude("**/org/apache/hadoop/**")
+//     exclude("**/com/linkedin/azkaban**")
+//     exclude("**/com/linkedin/hadoop**")
+//     exclude("hdfs*.xml")
+//     exclude("mapred*.xml")
+//     exclude("core*.xml")
+// }
 
 eclipse {
     project {
