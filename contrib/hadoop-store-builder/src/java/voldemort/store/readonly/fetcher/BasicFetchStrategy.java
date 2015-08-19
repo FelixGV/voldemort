@@ -86,6 +86,7 @@ public class BasicFetchStrategy implements FetchStrategy {
 
         OutputStream output = null;
         long startTimeMS = System.currentTimeMillis();
+        Integer previousAttempt = null;
 
         for (int attempt = 1; attempt <= fetcher.getMaxAttempts(); attempt++) {
             boolean success = true;
@@ -98,12 +99,8 @@ public class BasicFetchStrategy implements FetchStrategy {
                     fileCheckSumGenerator = CheckSum.getInstance(checkSumType);
                 }
 
-                String message = "Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() +
-                        " to fetch remote file: " + source + " to local destination: " + dest;
-                logger.info(message);
-                if(this.status != null) {
-                    this.status.setStatus(message);
-                }
+                logger.info("Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() +
+                        " to fetch remote file: " + source + " to local destination: " + dest);
 
                 input = new ThrottledInputStream(fs.open(source.getPath()), fetcher.getThrottler(), stats);
 
@@ -135,13 +132,15 @@ public class BasicFetchStrategy implements FetchStrategy {
 
                     stats.recordBytesWritten(read);
                     totalBytesRead += read;
-                    if (stats.getBytesTransferredSinceLastReport() > fetcher.getReportingIntervalBytes()) {
+                    if (attempt != previousAttempt || stats.getBytesTransferredSinceLastReport() > fetcher.getReportingIntervalBytes()) {
+                        previousAttempt = attempt;
                         NumberFormat format = NumberFormat.getNumberInstance();
                         format.setMaximumFractionDigits(2);
-                        message = stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
-                                + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024))
-                                + " MB/sec - " + format.format(stats.getPercentCopied())
-                                + " % complete, destination:" + dest;
+                        String message = stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
+                                + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024)) + " MB/sec"
+                                + "," + format.format(stats.getPercentCopied()) + " % complete"
+                                + ", attempt: " + attempt + " / " + fetcher.getMaxAttempts()
+                                + ", file: " + dest.getName();
                         logger.info(message);
                         if(this.status != null) {
                             this.status.setStatus(message);
