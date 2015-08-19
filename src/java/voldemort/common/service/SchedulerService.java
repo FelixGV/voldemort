@@ -219,10 +219,24 @@ public class SchedulerService extends AbstractService {
         public SchedulerThreadPool(int numThreads) {
             super(numThreads, new ThreadFactory() {
 
+                /**
+                 * This function is overridden in order to activate the daemon mode as well as
+                 * to give a human readable name to threads used by the {@link SchedulerService}.
+                 * 
+                 * Previously, this function would set the thread's name to the value of the passed-in
+                 * {@link Runnable}'s class name, but this is useless since it always ends up being a
+                 * java.util.concurrent.ThreadPoolExecutor$Worker
+                 *
+                 * Instead, a generic name is now used, and the thread's name will be set more
+                 * precisely during {@link voldemort.server.protocol.admin.AsyncOperation#run()}.
+                 * 
+                 * @param r {@link Runnable} to execute
+                 * @return a new {@link Thread} appropriate for use within the {@link SchedulerService}.
+                 */
                 public Thread newThread(Runnable r) {
                     Thread thread = new Thread(r);
                     thread.setDaemon(true);
-                    thread.setName(r.getClass().getName());
+                    thread.setName("Newly created SchedulerService thread.");
                     return thread;
                 }
             });
