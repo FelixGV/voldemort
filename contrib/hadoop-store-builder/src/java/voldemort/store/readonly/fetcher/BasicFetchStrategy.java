@@ -87,7 +87,7 @@ public class BasicFetchStrategy implements FetchStrategy {
         OutputStream output = null;
         long startTimeMS = System.currentTimeMillis();
 
-        for (int attempt = 0; attempt < fetcher.getMaxAttempts(); attempt++) {
+        for (int attempt = 1; attempt <= fetcher.getMaxAttempts(); attempt++) {
             boolean success = true;
             long totalBytesRead = 0;
             boolean fsOpened = false;
@@ -98,7 +98,12 @@ public class BasicFetchStrategy implements FetchStrategy {
                     fileCheckSumGenerator = CheckSum.getInstance(checkSumType);
                 }
 
-                logger.info("Attempt " + attempt + " at copy of " + source + " to " + dest);
+                String message = "Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() +
+                        " to fetch remote file: " + source + " to local destination: " + dest;
+                logger.info(message);
+                if(this.status != null) {
+                    this.status.setStatus(message);
+                }
 
                 input = new ThrottledInputStream(fs.open(source.getPath()), fetcher.getThrottler(), stats);
 
@@ -133,7 +138,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                     if (stats.getBytesTransferredSinceLastReport() > fetcher.getReportingIntervalBytes()) {
                         NumberFormat format = NumberFormat.getNumberInstance();
                         format.setMaximumFractionDigits(2);
-                        String message = stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
+                        message = stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
                                 + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024))
                                 + " MB/sec - " + format.format(stats.getPercentCopied())
                                 + " % complete, destination:" + dest;
@@ -164,7 +169,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                     logger.error("Cause of error ", e.getCause());
                 }
 
-                if(attempt < fetcher.getMaxAttempts() - 1) {
+                if(attempt < fetcher.getMaxAttempts()) {
                     logger.info("Will retry copying after " + fetcher.getRetryDelayMs() + " ms");
                     sleepForRetryDelayMs();
                 } else {
