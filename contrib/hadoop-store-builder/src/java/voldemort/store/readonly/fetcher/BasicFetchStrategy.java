@@ -99,8 +99,9 @@ public class BasicFetchStrategy implements FetchStrategy {
                     fileCheckSumGenerator = CheckSum.getInstance(checkSumType);
                 }
 
-                logger.info("Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() +
-                        " to fetch remote file: " + source + " to local destination: " + dest);
+                logger.info("Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() + " to fetch " +
+                        "\n\tRemote file: " + source +
+                        "\n\tLocal destination: " + dest);
 
                 input = new ThrottledInputStream(fs.open(source.getPath()), fetcher.getThrottler(), stats);
 
@@ -132,7 +133,8 @@ public class BasicFetchStrategy implements FetchStrategy {
 
                     stats.recordBytesWritten(read);
                     totalBytesRead += read;
-                    if (attempt != previousAttempt || stats.getBytesTransferredSinceLastReport() > fetcher.getReportingIntervalBytes()) {
+                    boolean reportIntervalPassed = stats.getBytesTransferredSinceLastReport() > fetcher.getReportingIntervalBytes();
+                    if (attempt != previousAttempt || reportIntervalPassed) {
                         previousAttempt = attempt;
                         NumberFormat format = NumberFormat.getNumberInstance();
                         format.setMaximumFractionDigits(2);
@@ -140,12 +142,14 @@ public class BasicFetchStrategy implements FetchStrategy {
                                 + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024)) + " MB/sec"
                                 + "," + format.format(stats.getPercentCopied()) + " % complete"
                                 + ", attempt: " + attempt + " / " + fetcher.getMaxAttempts()
-                                + ", file: " + dest.getName();
-                        logger.info(message);
+                                + ", current file: " + dest.getName();
                         if(this.status != null) {
                             this.status.setStatus(message);
                         }
-                        stats.reset();
+                        if (reportIntervalPassed) {
+                            logger.info(message);
+                            stats.reset();
+                        }
                     }
                 }
                 stats.reportFileDownloaded(dest,
