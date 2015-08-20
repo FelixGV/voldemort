@@ -35,9 +35,10 @@ public abstract class AsyncOperation implements Runnable {
             operate();
         } catch(Exception e) {
             status.setException(e);
+        } finally {
+            Thread.currentThread().setName(previousThreadName);
         }
         updateStatus("Finished " + getStatus());
-        Thread.currentThread().setName(previousThreadName);
         markComplete();
     }
 
