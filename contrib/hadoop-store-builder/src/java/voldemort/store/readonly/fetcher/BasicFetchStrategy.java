@@ -86,7 +86,7 @@ public class BasicFetchStrategy implements FetchStrategy {
 
         OutputStream output = null;
         long startTimeMS = System.currentTimeMillis();
-        Integer previousAttempt = null;
+        int previousAttempt = 0;
 
         for (int attempt = 1; attempt <= fetcher.getMaxAttempts(); attempt++) {
             boolean success = true;
@@ -99,9 +99,9 @@ public class BasicFetchStrategy implements FetchStrategy {
                     fileCheckSumGenerator = CheckSum.getInstance(checkSumType);
                 }
 
-                logger.info("Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() + " to fetch " +
-                        "\n\tRemote file: " + source +
-                        "\n\tLocal destination: " + dest);
+                logger.info("Starting attempt # " + attempt + " / " + fetcher.getMaxAttempts() +
+                        " to fetch remote file: " + source +
+                        "\nLocal destination: " + dest);
 
                 input = new ThrottledInputStream(fs.open(source.getPath()), fetcher.getThrottler(), stats);
 
@@ -160,7 +160,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                         totalBytesRead);
                 logger.info("Completed copy of " + source + " to " + dest);
 
-            } catch (Exception e) {
+            } catch (IOException e) {
                 success = false;
                 if(!fsOpened) {
                     logger.error("Error while opening the file stream to " + source, e);
@@ -178,7 +178,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                 } else {
                     stats.reportFileError(dest, fetcher.getMaxAttempts(), startTimeMS, e);
                     logger.info("Fetcher giving up copy after " + fetcher.getMaxAttempts() + " attempts");
-                    throw new IOException(e);
+                    throw e;
                 }
             } finally {
                 IOUtils.closeQuietly(output);
