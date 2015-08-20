@@ -89,7 +89,7 @@ public class BasicFetchStrategy implements FetchStrategy {
         int previousAttempt = 0;
 
         for (int attempt = 1; attempt <= fetcher.getMaxAttempts(); attempt++) {
-            boolean success = true;
+            boolean success = false;
             long totalBytesRead = 0;
             boolean fsOpened = false;
             try {
@@ -159,14 +159,12 @@ public class BasicFetchStrategy implements FetchStrategy {
                         attempt,
                         totalBytesRead);
                 logger.info("Completed copy of " + source + " to " + dest);
-
+                success = true;
             } catch (IOException e) {
-                success = false;
                 if(!fsOpened) {
                     logger.error("Error while opening the file stream to " + source, e);
                 } else {
-                    logger.error("Error while copying file " + source + " after " + totalBytesRead
-                            + " bytes.", e);
+                    logger.error("Error while copying file " + source + " after " + totalBytesRead + " bytes.", e);
                 }
                 if(e.getCause() != null) {
                     logger.error("Cause of error ", e.getCause());
