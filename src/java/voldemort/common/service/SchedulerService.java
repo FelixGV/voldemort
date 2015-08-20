@@ -49,7 +49,9 @@ public class SchedulerService extends AbstractService {
 
     private static final Logger logger = Logger.getLogger(SchedulerService.class);
     private boolean mayInterrupt;
-    private static final String THREAD_NAME_PREFIX = "voldemort-scheduler-service-t";
+    private static final String THREAD_NAME_PREFIX = "voldemort-scheduler-service";
+    private static final AtomicInteger schedulerServiceCount = new AtomicInteger(0);
+    private final String schedulerName = THREAD_NAME_PREFIX + schedulerServiceCount.incrementAndGet();
 
     private class ScheduledRunnable {
 
@@ -93,7 +95,7 @@ public class SchedulerService extends AbstractService {
     public SchedulerService(int schedulerThreads, Time time, boolean mayInterrupt) {
         super(ServiceType.SCHEDULER);
         this.time = time;
-        this.scheduler = new SchedulerThreadPool(schedulerThreads);
+        this.scheduler = new SchedulerThreadPool(schedulerThreads, schedulerName);
         this.scheduledJobResults = new ConcurrentHashMap<String, ScheduledFuture>();
         this.allJobs = new ConcurrentHashMap<String, ScheduledRunnable>();
         this.mayInterrupt = mayInterrupt;
@@ -217,8 +219,7 @@ public class SchedulerService extends AbstractService {
      * A scheduled thread pool that fixes some default behaviors
      */
     private static class SchedulerThreadPool extends ScheduledThreadPoolExecutor {
-
-        public SchedulerThreadPool(int numThreads) {
+        public SchedulerThreadPool(int numThreads, final String schedulerName) {
             super(numThreads, new ThreadFactory() {
                 private AtomicInteger threadCount = new AtomicInteger(0);
 
@@ -239,7 +240,7 @@ public class SchedulerService extends AbstractService {
                 public Thread newThread(Runnable r) {
                     Thread thread = new Thread(r);
                     thread.setDaemon(true);
-                    thread.setName(THREAD_NAME_PREFIX + threadCount.incrementAndGet());
+                    thread.setName(schedulerName + "-t" + threadCount.incrementAndGet());
                     return thread;
                 }
             });
