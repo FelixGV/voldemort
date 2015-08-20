@@ -432,7 +432,7 @@ message DisableStoreVersionResponse {
 }
 
 message HandleFetchFailureRequest {
-  repeated int32 failed_nodes = 1 [default = -1];
+  repeated int32 failed_nodes = 1;
   required DisableStoreVersionRequest store_version_info = 2;
 }
 
