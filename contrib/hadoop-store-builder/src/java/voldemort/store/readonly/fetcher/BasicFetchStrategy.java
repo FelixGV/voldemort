@@ -140,7 +140,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                         format.setMaximumFractionDigits(2);
                         String message = stats.getTotalBytesTransferred() / (1024 * 1024) + " MB copied at "
                                 + format.format(stats.getBytesTransferredPerSecond() / (1024 * 1024)) + " MB/sec"
-                                + "," + format.format(stats.getPercentCopied()) + " % complete"
+                                + ", " + format.format(stats.getPercentCopied()) + " % complete"
                                 + ", attempt: " + attempt + " / " + fetcher.getMaxAttempts()
                                 + ", current file: " + dest.getName();
                         if(this.status != null) {

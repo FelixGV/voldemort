@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.management.MBeanOperationInfo;
 
@@ -48,6 +49,7 @@ public class SchedulerService extends AbstractService {
 
     private static final Logger logger = Logger.getLogger(SchedulerService.class);
     private boolean mayInterrupt;
+    private static final String THREAD_NAME_PREFIX = "voldemort-scheduler-service-t-";
 
     private class ScheduledRunnable {
 
@@ -218,6 +220,7 @@ public class SchedulerService extends AbstractService {
 
         public SchedulerThreadPool(int numThreads) {
             super(numThreads, new ThreadFactory() {
+                private AtomicInteger threadCount = new AtomicInteger(0);
 
                 /**
                  * This function is overridden in order to activate the daemon mode as well as
@@ -227,7 +230,7 @@ public class SchedulerService extends AbstractService {
                  * {@link Runnable}'s class name, but this is useless since it always ends up being a
                  * java.util.concurrent.ThreadPoolExecutor$Worker
                  *
-                 * Instead, a generic name is now used, and the thread's name will be set more
+                 * Instead, a generic name is now used, and the thread's name can be set more
                  * precisely during {@link voldemort.server.protocol.admin.AsyncOperation#run()}.
                  * 
                  * @param r {@link Runnable} to execute
@@ -236,7 +239,7 @@ public class SchedulerService extends AbstractService {
                 public Thread newThread(Runnable r) {
                     Thread thread = new Thread(r);
                     thread.setDaemon(true);
-                    thread.setName("Newly created SchedulerService thread.");
+                    thread.setName(THREAD_NAME_PREFIX + threadCount.incrementAndGet());
                     return thread;
                 }
             });
