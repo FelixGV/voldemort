@@ -431,6 +431,15 @@ message DisableStoreVersionResponse {
   optional string info = 3;
 }
 
+message HandleFetchFailureRequest {
+  repeated int32 failed_nodes = 1 [default = -1];
+  required DisableStoreVersionRequest store_version_info = 2;
+}
+
+message HandleFetchFailureResponse {
+  repeated DisableStoreVersionResponse disable_request_responses = 1;
+}
+
 enum AdminRequestType {
   GET_METADATA = 0;
   UPDATE_METADATA = 1;
@@ -473,6 +482,7 @@ enum AdminRequestType {
   ENABLE_SCHEDULED_JOB = 40;
   GET_HA_SETTINGS = 41;
   DISABLE_STORE_VERSION = 42;
+  HANDLE_FETCH_FAILURE = 43;
 }
 
 message VoldemortAdminRequest {
@@ -518,4 +528,5 @@ message VoldemortAdminRequest {
   optional EnableScheduledJobRequest enable_scheduled_job = 42;
   optional GetHighAvailabilitySettingsRequest get_ha_settings = 43;
   optional DisableStoreVersionRequest disable_store_version = 44;
+  optional HandleFetchFailureRequest handle_fetch_failure = 45;
 }
