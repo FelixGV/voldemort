@@ -160,7 +160,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                         totalBytesRead);
                 logger.info("Completed copy of " + source + " to " + dest);
 
-            } catch (IOException e) {
+            } catch (Exception e) {
                 success = false;
                 if(!fsOpened) {
                     logger.error("Error while opening the file stream to " + source, e);
@@ -178,7 +178,7 @@ public class BasicFetchStrategy implements FetchStrategy {
                 } else {
                     stats.reportFileError(dest, fetcher.getMaxAttempts(), startTimeMS, e);
                     logger.info("Fetcher giving up copy after " + fetcher.getMaxAttempts() + " attempts");
-                    throw e;
+                    throw new IOException(e);
                 }
             } finally {
                 IOUtils.closeQuietly(output);
