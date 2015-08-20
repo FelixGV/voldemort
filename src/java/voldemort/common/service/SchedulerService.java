@@ -49,7 +49,7 @@ public class SchedulerService extends AbstractService {
 
     private static final Logger logger = Logger.getLogger(SchedulerService.class);
     private boolean mayInterrupt;
-    private static final String THREAD_NAME_PREFIX = "voldemort-scheduler-service-t-";
+    private static final String THREAD_NAME_PREFIX = "voldemort-scheduler-service-t";
 
     private class ScheduledRunnable {
 
