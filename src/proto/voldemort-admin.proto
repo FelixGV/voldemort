@@ -429,15 +429,20 @@ message DisableStoreVersionResponse {
   required bool disable_success = 1;
   optional bool disable_persistence_success = 2;
   optional string info = 3;
+  optional int32 node_id = 4;
 }
 
 message HandleFetchFailureRequest {
   repeated int32 failed_nodes = 1;
-  required DisableStoreVersionRequest store_version_info = 2;
+  required string store_name = 2;
+  required int64 push_version = 3;
+  optional string info = 4;
 }
 
 message HandleFetchFailureResponse {
-  repeated DisableStoreVersionResponse disable_request_responses = 1;
+  required bool swap_is_possible = 1;
+  optional string info = 2;
+  repeated DisableStoreVersionResponse disable_store_responses = 3;
 }
 
 enum AdminRequestType {

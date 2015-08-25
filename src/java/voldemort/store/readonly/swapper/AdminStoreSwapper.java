@@ -83,8 +83,9 @@ public class AdminStoreSwapper {
      * @param adminClient The admin client to use for querying
      * @param timeoutMs Time out in ms
      * @param deleteFailedFetch Boolean to indicate we want to delete data on
-*        successful nodes after a fetch fails somewhere.
+     *                          successful nodes after a fetch fails somewhere.
      * @param rollbackFailedSwap Boolean to indicate we want to rollback the
+     *                           data on failed swaps.
      */
     public AdminStoreSwapper(Cluster cluster,
                              ExecutorService executor,

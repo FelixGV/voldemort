@@ -98,16 +98,8 @@ import java.net.SocketException;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
@@ -4172,29 +4164,58 @@ public class AdminClient implements Closeable {
         }
 
         /**
-          * @return true if successful, false otherwise.
+          * @return the {@link DisableStoreVersionResponse}
          */
-        public boolean disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
+        public VAdminProto.DisableStoreVersionResponse disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
             VAdminProto.DisableStoreVersionRequest request = VAdminProto.DisableStoreVersionRequest.newBuilder()
                                                                                                    .setStoreName(storeName)
                                                                                                    .setPushVersion(storeVersion)
                                                                                                    .setInfo(info)
                                                                                                    .build();
-            VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
-                                                                                              .setDisableStoreVersion(request)
-                                                                                              .setType(VAdminProto.AdminRequestType.DISABLE_STORE_VERSION)
-                                                                                              .build();
-            VAdminProto.DisableStoreVersionResponse.Builder response = rpcOps.sendAndReceive(nodeId,
-                                                                                             adminRequest,
-                                                                                             VAdminProto.DisableStoreVersionResponse.newBuilder());
 
-            if (response.getDisableSuccess()) {
-                logger.info(response.getInfo());
-            } else {
-                logger.error(response.getInfo());
+            VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
+                                                                        .setDisableStoreVersion(request)
+                                                                        .setType(VAdminProto.AdminRequestType.DISABLE_STORE_VERSION)
+                                                                        .build();
+
+            VAdminProto.DisableStoreVersionResponse response = rpcOps.sendAndReceive(nodeId,
+                                                                                     adminRequest,
+                                                                                     VAdminProto.DisableStoreVersionResponse.newBuilder()).build();
+
+            return response;
+        }
+
+        /**
+         * @return true if it's still possible to do a swap, false otherwise.
+         */
+        public boolean handleFailedFetch(List<Integer> failedNodes, String storeName, Long storeVersion, String info) {
+            VAdminProto.HandleFetchFailureRequest handleFetchFailureRequest =
+                    VAdminProto.HandleFetchFailureRequest.newBuilder().setStoreName(storeName)
+                                                                      .setPushVersion(storeVersion)
+                                                                      .setInfo(info)
+                                                                      .addAllFailedNodes(failedNodes)
+                                                                      .build();
+
+            List<Integer> liveNodes = Lists.newArrayList(currentCluster.getNodeIds());
+            liveNodes.removeAll(failedNodes);
+            Integer randomIndex = (int) (Math.random() * liveNodes.size());
+            Integer randomNodeId = liveNodes.get(randomIndex);
+
+            VAdminProto.HandleFetchFailureResponse response = rpcOps.sendAndReceive(randomNodeId,
+                                                                                    handleFetchFailureRequest,
+                                                                                    VAdminProto.HandleFetchFailureResponse.newBuilder()).build();
+
+            for (VAdminProto.DisableStoreVersionResponse disableStoreVersionResponse: response.getDisableStoreResponsesList()) {
+                Node node = currentCluster.getNodeById(disableStoreVersionResponse.getNodeId());
+                String message = node.briefToString() + ": " + disableStoreVersionResponse.getInfo();
+                if (disableStoreVersionResponse.getDisableSuccess()) {
+                    logger.info(message);
+                } else {
+                    logger.error(message);
+                }
             }
 
-            return response.getDisableSuccess();
+            return response.getSwapIsPossible();
         }
     }
 
