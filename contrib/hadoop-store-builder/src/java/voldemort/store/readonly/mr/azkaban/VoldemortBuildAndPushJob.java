@@ -727,20 +727,10 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 } else {
                     // HA is enabled by the server config
                     maxNodeFailures = serverSettings.getMaxNodeFailure();
-                    Class<? extends FailedFetchLock> failedFetchLockClass =
-                            (Class<? extends FailedFetchLock>) Class.forName(serverSettings.getLockImplementation());
-                    Props propsForCluster = new Props(props);
-                    propsForCluster.put(VoldemortConfig.PUSH_HA_LOCK_PATH, serverSettings.getLockPath());
-                    propsForCluster.put(VoldemortConfig.PUSH_HA_CLUSTER_ID, serverSettings.getClusterId());
-                    FailedFetchLock failedFetchLock =
-                            ReflectUtils.callConstructor(failedFetchLockClass, new Object[]{propsForCluster});
                     failedFetchStrategyList.add(
                             new DisableStoreOnFailedNodeFailedFetchStrategy(
                                     adminClientPerCluster.get(url),
-                                    failedFetchLock,
-                                    maxNodeFailures,
-                                    propsForCluster.toString()));
-                    closeables.add(failedFetchLock);
+                                    props.toString()));
                     log.info("pushHighAvailability is enabled for cluster URL: " + url +
                             " with cluster ID: " + serverSettings.getClusterId());
                 }
@@ -748,9 +738,6 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 // Not printing out the exception in the logs as that is a benign error.
                 log.error("The server does not support HA (introduced in release 1.9.18), so " +
                         "pushHighAvailability will be DISABLED on cluster: " + url);
-            } catch (ClassNotFoundException e) {
-                log.error("Failed to find requested FailedFetchLock implementation, so " +
-                        "pushHighAvailability will be DISABLED on cluster: " + url, e);
             } catch (Exception e) {
                 log.error("Got exception while trying to determine pushHighAvailability settings on cluster: " + url, e);
             }
