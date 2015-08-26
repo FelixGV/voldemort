@@ -48,10 +48,7 @@ import voldemort.server.protocol.admin.AsyncOperationStatus;
 import voldemort.server.rebalance.VoldemortRebalancingException;
 import voldemort.server.storage.prunejob.VersionedPutPruneJob;
 import voldemort.server.storage.repairjob.RepairJob;
-import voldemort.store.ErrorCodeMapper;
-import voldemort.store.Store;
-import voldemort.store.StoreDefinition;
-import voldemort.store.StoreUtils;
+import voldemort.store.*;
 import voldemort.store.metadata.MetadataStore;
 import voldemort.store.metadata.MetadataStore.VoldemortState;
 import voldemort.store.quota.QuotaType;
@@ -4136,7 +4133,7 @@ public class AdminClient implements Closeable {
         }
 
         /**
-          * @return the {@link DisableStoreVersionResponse}
+          * @return the {@link voldemort.client.protocol.pb.VAdminProto.DisableStoreVersionResponse}
          */
         public VAdminProto.DisableStoreVersionResponse disableStoreVersion(Integer nodeId, String storeName, Long storeVersion, String info) {
             VAdminProto.DisableStoreVersionRequest request = VAdminProto.DisableStoreVersionRequest.newBuilder()
@@ -4150,9 +4147,22 @@ public class AdminClient implements Closeable {
                                                                         .setType(VAdminProto.AdminRequestType.DISABLE_STORE_VERSION)
                                                                         .build();
 
-            VAdminProto.DisableStoreVersionResponse response = rpcOps.sendAndReceive(nodeId,
-                                                                                     adminRequest,
-                                                                                     VAdminProto.DisableStoreVersionResponse.newBuilder()).build();
+            VAdminProto.DisableStoreVersionResponse response = null;
+            VAdminProto.DisableStoreVersionResponse.Builder responseBuilder = VAdminProto.DisableStoreVersionResponse.newBuilder();
+            try {
+                response = rpcOps.sendAndReceive(nodeId,
+                                                 adminRequest,
+                                                 responseBuilder).build();
+            } catch (UnreachableStoreException e) {
+                String errorMessage = "Got an UnreachableStoreException while trying to disableStoreVersion on node " +
+                        nodeId + ", store " + storeName + ", version " + storeVersion + ". If the node is actually " +
+                        "up and merely net-split from us, it might continue serving stale data...";
+                logger.warn(errorMessage, e);
+                response = responseBuilder.setDisableSuccess(false)
+                                          .setInfo(errorMessage)
+                                          .setNodeId(nodeId)
+                                          .build();
+            }
 
             return response;
         }
