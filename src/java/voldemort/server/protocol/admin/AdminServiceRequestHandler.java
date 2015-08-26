@@ -1995,7 +1995,7 @@ public class AdminServiceRequestHandler implements RequestHandler {
         boolean swapIsPossible = false;
         String responseMessage = "";
         if (failureCount > maxNodeFailure) {
-            // Too many exceptions to tolerate this strategy... let's bail out.
+            // Too many nodes failed to tolerate this strategy... let's bail out.
             responseMessage = "We cannot use pushHighAvailability because there is more than " + maxNodeFailure +
                     " nodes that failed their fetches...";
             logger.error(responseMessage);
@@ -2023,22 +2023,27 @@ public class AdminServiceRequestHandler implements RequestHandler {
 
                 if (allNodesToBeDisabled.size() > maxNodeFailure) {
                     // Too many exceptions to tolerate this strategy... let's bail out.
-                    logger.error("We cannot use " + getClass().getSimpleName() +
-                                         " because it would bring the total number of nodes with" +
-                                         " disabled stores to more than " + maxNodeFailure + "...");
+                    responseMessage = "We cannot use pushHighAvailability because it would bring the total number of " +
+                                         "nodes with disabled stores to more than " + maxNodeFailure + "...";
+                    logger.error(responseMessage);
                 } else {
+                    String nodesString = "[";
+                    boolean firstNode = true;
                     for (Integer nodeId: nodesFailedInThisFetch) {
                         logger.warn("Will disable store '" + storeName + "' on node " + nodeId);
                         distributedLock.addDisabledNode(nodeId, storeName, pushVersion);
-                        try {
-                            response.addDisableStoreResponses(adminClient.readonlyOps.disableStoreVersion(nodeId, storeName, pushVersion, extraInfo));
-                        } catch (UnreachableStoreException e) {
-                            logger.warn("Got an UnreachableStoreException while trying to disableStoreVersion on node " +
-                                                nodeId + ", store " + storeName + ", version " + pushVersion +
-                                                ". If the node is actually up and merely net-split from us, it might continue serving stale data...", e);
+                        if (firstNode) {
+                            firstNode = false;
+                        } else {
+                            nodesString += ", ";
                         }
+                        nodesString += nodeId;
+                        response.addDisableStoreResponses(
+                                adminClient.readonlyOps.disableStoreVersion(nodeId, storeName, pushVersion, extraInfo));
                     }
                     swapIsPossible = true;
+                    responseMessage = "Swap will be possible even though nodes " + nodesString + " have failed their fetch.";
+                    logger.info(responseMessage);
                 }
             } catch (ClassNotFoundException e) {
                 String logMessage = "Failed to find requested FailedFetchLock implementation while setting up pushHighAvailability. ";
