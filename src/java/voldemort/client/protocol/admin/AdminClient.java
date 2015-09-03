@@ -3984,11 +3984,11 @@ public class AdminClient implements Closeable {
                     nodeFailures++;
                     if (nodeFailures > maxNodeFailures) {
                         logger.error("Got an exception while trying to reach node " + node.getId() + ". " +
-                                nodeFailures + " node failures so far; maxNodeFailures exceeded, rethrowing.");
+                                nodeFailures + " node failure(s) so far; maxNodeFailures exceeded, rethrowing.");
                         throw e;
                     } else {
                         logger.warn("Got an exception while trying to reach node " + node.getId() + ". " +
-                                nodeFailures + " node failures so far; continuing.", e);
+                                nodeFailures + " node failure(s) so far; continuing.", e);
                     }
                 }
             }
@@ -4211,8 +4211,13 @@ public class AdminClient implements Closeable {
             Integer randomIndex = (int) (Math.random() * liveNodes.size());
             Integer randomNodeId = liveNodes.get(randomIndex);
 
+            VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
+                                                                        .setHandleFetchFailure(handleFetchFailureRequest)
+                                                                        .setType(VAdminProto.AdminRequestType.HANDLE_FETCH_FAILURE)
+                                                                        .build();
+
             VAdminProto.HandleFetchFailureResponse response = rpcOps.sendAndReceive(randomNodeId,
-                                                                                    handleFetchFailureRequest,
+                                                                                    adminRequest,
                                                                                     VAdminProto.HandleFetchFailureResponse.newBuilder()).build();
 
             for (VAdminProto.DisableStoreVersionResponse disableStoreVersionResponse: response.getDisableStoreResponsesList()) {
