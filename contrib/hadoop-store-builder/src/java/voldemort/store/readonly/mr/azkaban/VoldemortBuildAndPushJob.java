@@ -1067,11 +1067,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         SerializerDefinition remoteKeySerializerDef = remoteStoreDef.getKeySerializer();
                         SerializerDefinition remoteValueSerializerDef = remoteStoreDef.getValueSerializer();
                         if(remoteKeySerializerDef.getName().equals(serializerName)
-                                && remoteValueSerializerDef.getName().equals(serializerName)
-                                // We explicitly disallow schema evolution at the moment.
-                                // FIXME: Make schema evolution work
-                                && remoteKeySerializerDef.getAllSchemaInfoVersions().size() == 1
-                                && remoteValueSerializerDef.getAllSchemaInfoVersions().size() == 1) {
+                                && remoteValueSerializerDef.getName().equals(serializerName)) {
 
                             if (isAvroJob) {
                                 newStoreDef = getNewAvroStoreDef(hasCompression,
