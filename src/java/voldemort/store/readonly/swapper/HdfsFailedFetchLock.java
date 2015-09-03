@@ -113,12 +113,14 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 success = this.fileSystem.mkdirs(new Path(afterLockDir));
 
                 if (!success) {
-                    logger.warn(logFailureMessage(INIT_DIRS, UNKNOWN_REASONS, attempts));
+                    logger.warn(logFailureAndWait(INIT_DIRS, UNKNOWN_REASONS, attempts));
                 }
             }  catch (IOException e) {
                 handleIOException(e, INIT_DIRS, attempts);
-                wait(waitBetweenRetries);
-                attempts++;
+            } finally {
+                if (!success) {
+                    attempts++;
+                }
             }
         }
 
@@ -131,10 +133,17 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
         return "Exec" + execId + "-Time" + System.currentTimeMillis() + "-" + flowId + "-" + jobId;
     }
 
-    private String logFailureMessage(String action, String cause, int attempt) {
-        return "Failed to " + action + " because " + cause + ". Attempt # " +
-                attempt + "/" + maxAttempts + ", will wait " +
-                waitBetweenRetries + " ms until next retry.";
+    private String logFailureAndWait(String action, String cause, int attempt) throws InterruptedException {
+        String retryMessage;
+        if (attempt < maxAttempts) {
+            retryMessage = ", will wait " + waitBetweenRetries + " ms until next retry.";
+            wait(waitBetweenRetries);
+        } else {
+            retryMessage = ", no further attempts will be performed.";
+        }
+
+        return "Failed to " + action + " because " + cause + ". Attempt #" +
+                attempt + "/" + maxAttempts + retryMessage;
     }
 
     private String exceptionMessage(String action) {
@@ -149,12 +158,13 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
      * @param e
      * @throws VoldemortException
      */
-    private void handleIOException(IOException e, String action, int attempt) throws VoldemortException {
+    private void handleIOException(IOException e, String action, int attempt)
+            throws VoldemortException, InterruptedException {
         if (e.getMessage().contains("Filesystem closed")) {
             throw new VoldemortException("Got an IOException we cannot recover from while trying to " +
                     action + ". Attempt # " + attempt + "/" + maxAttempts + ". Will not try again.", e);
         } else {
-            logger.error(logFailureMessage(action, IO_EXCEPTION, attempt), e);
+            logger.error(logFailureAndWait(action, IO_EXCEPTION, attempt), e);
         }
     }
 
@@ -180,7 +190,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 this.lockAcquired = this.fileSystem.rename(temporaryLockFile, this.lockFile);
 
                 if (!this.lockAcquired) {
-                    logger.warn(logFailureMessage(ACQUIRE_LOCK, ALREADY_EXISTS, attempts));
+                    logger.warn(logFailureAndWait(ACQUIRE_LOCK, ALREADY_EXISTS, attempts));
                     this.fileSystem.delete(temporaryLockFile, false);
                 }
             }  catch (IOException e) {
@@ -193,7 +203,6 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
             }
 
             if (!this.lockAcquired) {
-                wait(waitBetweenRetries);
                 attempts++;
             }
         }
@@ -222,14 +231,13 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 this.lockAcquired = !(this.fileSystem.rename(this.lockFile, releasedLockFile));
 
                 if (this.lockAcquired) {
-                    logger.warn(logFailureMessage(RELEASE_LOCK, UNKNOWN_REASONS, attempts));
+                    logger.warn(logFailureAndWait(RELEASE_LOCK, UNKNOWN_REASONS, attempts));
                 }
             }  catch (IOException e) {
                 handleIOException(e, RELEASE_LOCK, attempts);
             }
 
             if (this.lockAcquired) {
-                wait(waitBetweenRetries);
                 attempts++;
             }
         }
@@ -258,7 +266,6 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 }
             }  catch (IOException e) {
                 handleIOException(e, GET_DISABLED_NODES, attempts);
-                wait(waitBetweenRetries);
                 attempts++;
             }
         }
@@ -292,7 +299,6 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 success = true;
             }  catch (IOException e) {
                 handleIOException(e, ADD_DISABLED_NODE, attempts);
-                wait(waitBetweenRetries);
                 attempts++;
             } finally {
                 if (outputStream != null) {
