@@ -17,11 +17,7 @@
 
 package voldemort.server.protocol.admin;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.StringReader;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -2008,7 +2004,9 @@ public class AdminServiceRequestHandler implements RequestHandler {
             try {
                 Class<? extends FailedFetchLock> failedFetchLockClass =
                         (Class<? extends FailedFetchLock>) Class.forName(voldemortConfig.getHighAvailabilityPushLockImplementation());
-                Props props = new Props();
+                Properties javaProperties = new Properties();
+                javaProperties.load(new ByteArrayInputStream(extraInfo.getBytes()));
+                Props props = new Props(javaProperties);
                 props.put(VoldemortConfig.PUSH_HA_LOCK_PATH, voldemortConfig.getHighAvailabilityPushLockPath());
                 props.put(VoldemortConfig.PUSH_HA_CLUSTER_ID, voldemortConfig.getHighAvailabilityPushClusterId());
                 distributedLock = ReflectUtils.callConstructor(failedFetchLockClass, new Object[]{props});
