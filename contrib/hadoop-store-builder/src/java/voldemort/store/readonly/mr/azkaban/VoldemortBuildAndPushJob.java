@@ -1094,6 +1094,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             if(newStoreDef != null) {
                                 if (remoteStoreDef.equals(newStoreDef)) {
                                     // All good for this node!
+                                    log.info("Store '" + remoteStoreDef.getName() +
+                                                     "' already exists with with an identical definition on " +
+                                                     node.briefToString());
                                     foundStore = true;
                                     break; // Since we don't need to iterate over the rest of the StoreDefs returned...
                                 } else {
@@ -1130,13 +1133,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             Node node = entry.getKey();
             boolean foundStore = entry.getValue();
             if (!foundStore) {
-                try {
-                    addStore(description, owners, clusterURL, newStoreDef, node);
-                }
-                catch(RuntimeException e) {
-                    log.error("Error in adding store definition from: " + clusterURL, e);
-                    throw new VoldemortException("Error in adding store definition from: " + clusterURL, e);
-                }
+                addStore(description, owners, clusterURL, newStoreDef, node);
             }
         }
         // don't use newStoreDef because we want to ALWAYS use the JSON definition since the store
