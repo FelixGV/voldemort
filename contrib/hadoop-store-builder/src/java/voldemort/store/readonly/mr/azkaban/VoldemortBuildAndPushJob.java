@@ -54,8 +54,10 @@ import voldemort.utils.Props;
 import voldemort.utils.ReflectUtils;
 import voldemort.utils.Utils;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -727,10 +729,14 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 } else {
                     // HA is enabled by the server config
                     maxNodeFailures = serverSettings.getMaxNodeFailure();
+                    OutputStream outputStream = new ByteArrayOutputStream();
+                    props.storeFlattened(outputStream);
+                    outputStream.flush();
+                    String jobInfoString = outputStream.toString();
                     failedFetchStrategyList.add(
                             new DisableStoreOnFailedNodeFailedFetchStrategy(
                                     adminClientPerCluster.get(url),
-                                    props.toString()));
+                                    jobInfoString));
                     log.info("pushHighAvailability is enabled for cluster URL: " + url +
                             " with cluster ID: " + serverSettings.getClusterId());
                 }
