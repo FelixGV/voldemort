@@ -7,7 +7,9 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import org.apache.log4j.Priority;
 import voldemort.VoldemortException;
 import voldemort.utils.Props;
 
@@ -113,7 +115,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 success = this.fileSystem.mkdirs(new Path(afterLockDir));
 
                 if (!success) {
-                    logger.warn(logFailureAndWait(INIT_DIRS, UNKNOWN_REASONS, attempts));
+                    logFailureAndWait(INIT_DIRS, UNKNOWN_REASONS, attempts);
                 }
             }  catch (IOException e) {
                 handleIOException(e, INIT_DIRS, attempts);
@@ -133,17 +135,27 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
         return "Exec" + execId + "-Time" + System.currentTimeMillis() + "-" + flowId + "-" + jobId;
     }
 
-    private String logFailureAndWait(String action, String cause, int attempt) throws InterruptedException {
+    private void logFailureAndWait(String action, String cause, int attempt) throws InterruptedException {
+        logFailureAndWait(action, cause, attempt, null);
+    }
+
+    private void logFailureAndWait(String action, String cause, int attempt, Exception e) throws InterruptedException {
         String retryMessage;
         if (attempt < maxAttempts) {
             retryMessage = ", will wait " + waitBetweenRetries + " ms until next retry.";
-            wait(waitBetweenRetries);
         } else {
             retryMessage = ", no further attempts will be performed.";
         }
-
-        return "Failed to " + action + " because " + cause + ". Attempt #" +
+        String fullMessage = "Failed to " + action + " because " + cause + ". Attempt #" +
                 attempt + "/" + maxAttempts + retryMessage;
+
+        if (e == null) {
+            logger.warn(fullMessage);
+        } else {
+            logger.error(fullMessage, e);
+        }
+
+        wait(waitBetweenRetries);
     }
 
     private String exceptionMessage(String action) {
@@ -164,7 +176,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
             throw new VoldemortException("Got an IOException we cannot recover from while trying to " +
                     action + ". Attempt # " + attempt + "/" + maxAttempts + ". Will not try again.", e);
         } else {
-            logger.error(logFailureAndWait(action, IO_EXCEPTION, attempt), e);
+            logFailureAndWait(action, IO_EXCEPTION, attempt, e);
         }
     }
 
@@ -190,7 +202,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 this.lockAcquired = this.fileSystem.rename(temporaryLockFile, this.lockFile);
 
                 if (!this.lockAcquired) {
-                    logger.warn(logFailureAndWait(ACQUIRE_LOCK, ALREADY_EXISTS, attempts));
+                    logFailureAndWait(ACQUIRE_LOCK, ALREADY_EXISTS, attempts);
                     this.fileSystem.delete(temporaryLockFile, false);
                 }
             }  catch (IOException e) {
@@ -231,7 +243,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
                 this.lockAcquired = !(this.fileSystem.rename(this.lockFile, releasedLockFile));
 
                 if (this.lockAcquired) {
-                    logger.warn(logFailureAndWait(RELEASE_LOCK, UNKNOWN_REASONS, attempts));
+                    logFailureAndWait(RELEASE_LOCK, UNKNOWN_REASONS, attempts);
                 }
             }  catch (IOException e) {
                 handleIOException(e, RELEASE_LOCK, attempts);
