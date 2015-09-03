@@ -1058,10 +1058,13 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             // go over all store defs and see if one has the same name as the store we're trying to build
             for(StoreDefinition remoteStoreDef: remoteStoreDefs) {
                 if(remoteStoreDef.getName().equals(storeName)) {
-                    // if the store already exists, but doesn't match what we want to push, we need to worry
-                    if(!remoteStoreDef.equals(newStoreDef)) {
-                        // let's check to see if the key/value serializers are
-                        // REALLY equal.
+                    if(remoteStoreDef.equals(newStoreDef)) {
+                        // A match made in heaven
+                        foundStore = true;
+                    } else {
+                        // if the store already exists, but doesn't equal() what we want to push, we need to worry
+
+                        // let's check to see if the key/value serializers are REALLY equal.
                         SerializerDefinition localKeySerializerDef = newStoreDef.getKeySerializer();
                         SerializerDefinition localValueSerializerDef = newStoreDef.getValueSerializer();
                         SerializerDefinition remoteKeySerializerDef = remoteStoreDef.getKeySerializer();
@@ -1093,12 +1096,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
                             if(newStoreDef != null) {
                                 if (remoteStoreDef.equals(newStoreDef)) {
-                                    // All good for this node!
-                                    log.info("Store '" + remoteStoreDef.getName() +
-                                                     "' already exists with with an identical definition on " +
-                                                     node.briefToString());
+                                    // All good after all (for this node) !
                                     foundStore = true;
-                                    break; // Since we don't need to iterate over the rest of the StoreDefs returned...
                                 } else {
                                     // if we still get a fail, then we know that the store defs don't match for reasons
                                     // OTHER than the key/value serializer
@@ -1114,15 +1113,24 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                         "defined on " + node.briefToString();
                                 log.error(errorMessage + diffMessage(newStoreDef, remoteStoreDef));
                                 throw new VoldemortException(errorMessage);
-
                             }
                         } else {
                             String errorMessage = "Your store definition does not match the store definition that is " +
                                     "already defined on " + node.briefToString();
                             log.error(errorMessage + diffMessage(newStoreDef, remoteStoreDef));
                             throw new VoldemortException(errorMessage);
-
                         }
+                    }
+                    if (foundStore) {
+                        // No need to iterate over the rest of the StoreDefinitions returned by the node...
+                        break;
+                    } else {
+                        // The above code has a bit of a complex flow... so this is just in case future code changes
+                        // introduce an issue that might otherwise make the store verification fail silently.
+                        throw new VoldemortException("Unexpected code path! At this point, we should either have found " +
+                                                             "a matching store or already thrown another exception. " +
+                                                             "Current remoteStoreDef: '" + remoteStoreDef.getName() + "'. " +
+                                                             "Current node: " + node.briefToString());
                     }
                 }
             }
@@ -1136,6 +1144,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 addStore(description, owners, clusterURL, newStoreDef, node);
             }
         }
+
         // don't use newStoreDef because we want to ALWAYS use the JSON definition since the store
         // builder assumes that you are using JsonTypeSerializer. This allows you to tweak your
         // value/key store xml  as you see fit, but still uses the json sequence file meta data
