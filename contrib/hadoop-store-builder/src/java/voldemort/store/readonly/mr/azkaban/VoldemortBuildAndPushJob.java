@@ -38,6 +38,7 @@ import voldemort.serialization.SerializerDefinition;
 import voldemort.serialization.json.JsonTypeDefinition;
 import voldemort.server.VoldemortConfig;
 import voldemort.store.StoreDefinition;
+import voldemort.store.UnreachableStoreException;
 import voldemort.store.readonly.checksum.CheckSum;
 import voldemort.store.readonly.checksum.CheckSum.CheckSumType;
 import voldemort.store.readonly.disk.KeyValueWriter;
@@ -1051,10 +1052,16 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         // get store def from each node in the cluster
         Map<Node, Boolean> storeFoundPerNode = Maps.newHashMap();
         for (Node node: adminClientPerCluster.get(clusterURL).getAdminClientCluster().getNodes()) {
-            int nodeId = node.getId();
-            List<StoreDefinition> remoteStoreDefs =
-                    adminClientPerCluster.get(clusterURL).metadataMgmtOps.getRemoteStoreDefList(nodeId).getValue();
             boolean foundStore = false;
+            int nodeId = node.getId();
+            List<StoreDefinition> remoteStoreDefs = Lists.newArrayList();
+
+            try {
+                remoteStoreDefs = adminClientPerCluster.get(clusterURL).metadataMgmtOps.getRemoteStoreDefList(nodeId).getValue();
+            } catch (UnreachableStoreException e) {
+                log.warn("Failed to contact " + node.briefToString() + " in order to validate the StoreDefinition.");
+            }
+
             // go over all store defs and see if one has the same name as the store we're trying to build
             for(StoreDefinition remoteStoreDef: remoteStoreDefs) {
                 if(remoteStoreDef.getName().equals(storeName)) {
@@ -1134,6 +1141,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     }
                 }
             }
+
             storeFoundPerNode.put(node, foundStore);
         }
 
