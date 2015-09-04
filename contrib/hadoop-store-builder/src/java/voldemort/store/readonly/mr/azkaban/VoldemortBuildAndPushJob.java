@@ -1059,6 +1059,9 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             try {
                 remoteStoreDefs = adminClientPerCluster.get(clusterURL).metadataMgmtOps.getRemoteStoreDefList(nodeId).getValue();
             } catch (UnreachableStoreException e) {
+                // When we can't reach the node, we just skip it and won't try creating the store on it.
+                // Next time BnP is run while the node is up, it will get the store created.
+                foundStore = true;
                 log.warn("Failed to contact " + node.briefToString() + " in order to validate the StoreDefinition.");
             }
 
