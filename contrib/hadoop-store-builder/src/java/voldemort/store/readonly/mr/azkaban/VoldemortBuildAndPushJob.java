@@ -634,7 +634,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
         return message;
     }
     
-    private void addStore(String description, String owners, String url, StoreDefinition newStoreDef, Node node) {
+    private void addStore(String description, String owners, String url, StoreDefinition newStoreDef, List<Integer> nodeIDs) {
         if (description.length() == 0) {
             throw new RuntimeException("Description field missing in store definition. "
                                        + "Please add \"" + PUSH_STORE_DESCRIPTION
@@ -647,12 +647,11 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                                        + "\" with value being a comma-separated list of email addresses.");
 
         }
-        log.info("Adding new store " + storeName + " to " + node.briefToString() + " in cluster URL " + url);
         try {
-            adminClientPerCluster.get(url).storeMgmtOps.addStore(newStoreDef, node.getId());
+            adminClientPerCluster.get(url).storeMgmtOps.addStore(newStoreDef, nodeIDs);
         }
         catch(VoldemortException ve) {
-            throw new RuntimeException("Exception while adding store to " + node.briefToString() + " in cluster URL" + url, ve);
+            throw new RuntimeException("Exception while adding store to nodes in cluster URL" + url, ve);
         }
     }
 
@@ -1049,28 +1048,28 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
 
         log.info("Verifying store against cluster URL: " + clusterURL + "\n" + newStoreDefXml.toString());
         StoreDefinition newStoreDef = VoldemortUtils.getStoreDef(newStoreDefXml);
-        // get store def from each node in the cluster
-        Map<Node, Boolean> storeFoundPerNode = Maps.newHashMap();
+        List<Integer> nodesMissingNewStore = Lists.newArrayList();
         for (Node node: adminClientPerCluster.get(clusterURL).getAdminClientCluster().getNodes()) {
-            boolean foundStore = false;
+            boolean addStoreToCurrentNode = true;
             int nodeId = node.getId();
             List<StoreDefinition> remoteStoreDefs = Lists.newArrayList();
 
             try {
+                // Get all StoreDefinitions from each nodes in the cluster
                 remoteStoreDefs = adminClientPerCluster.get(clusterURL).metadataMgmtOps.getRemoteStoreDefList(nodeId).getValue();
             } catch (UnreachableStoreException e) {
                 // When we can't reach the node, we just skip it and won't try creating the store on it.
                 // Next time BnP is run while the node is up, it will get the store created.
-                foundStore = true;
+                addStoreToCurrentNode = false;
                 log.warn("Failed to contact " + node.briefToString() + " in order to validate the StoreDefinition.");
             }
 
-            // go over all store defs and see if one has the same name as the store we're trying to build
+            // Go over all StoreDefinitions and see if one has the same name as the store we're trying to build
             for(StoreDefinition remoteStoreDef: remoteStoreDefs) {
                 if(remoteStoreDef.getName().equals(storeName)) {
                     if(remoteStoreDef.equals(newStoreDef)) {
                         // A match made in heaven
-                        foundStore = true;
+                        addStoreToCurrentNode = false;
                     } else {
                         // if the store already exists, but doesn't equal() what we want to push, we need to worry
 
@@ -1107,7 +1106,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             if(newStoreDef != null) {
                                 if (remoteStoreDef.equals(newStoreDef)) {
                                     // All good after all (for this node) !
-                                    foundStore = true;
+                                    addStoreToCurrentNode = false;
                                 } else {
                                     // if we still get a fail, then we know that the store defs don't match for reasons
                                     // OTHER than the key/value serializer
@@ -1131,7 +1130,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                             throw new VoldemortException(errorMessage);
                         }
                     }
-                    if (foundStore) {
+                    if (!addStoreToCurrentNode) {
                         // No need to iterate over the rest of the StoreDefinitions returned by the node...
                         break;
                     } else {
@@ -1145,16 +1144,12 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 }
             }
 
-            storeFoundPerNode.put(node, foundStore);
-        }
-
-        for (Map.Entry<Node, Boolean> entry: storeFoundPerNode.entrySet()) {
-            Node node = entry.getKey();
-            boolean foundStore = entry.getValue();
-            if (!foundStore) {
-                addStore(description, owners, clusterURL, newStoreDef, node);
+            if (addStoreToCurrentNode) {
+                nodesMissingNewStore.add(nodeId);
             }
         }
+
+        addStore(description, owners, clusterURL, newStoreDef, nodesMissingNewStore);
 
         // don't use newStoreDef because we want to ALWAYS use the JSON definition since the store
         // builder assumes that you are using JsonTypeSerializer. This allows you to tweak your
