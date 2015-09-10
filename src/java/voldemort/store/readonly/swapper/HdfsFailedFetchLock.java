@@ -155,7 +155,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
             logger.error(fullMessage, e);
         }
 
-        wait(waitBetweenRetries);
+        Thread.sleep(waitBetweenRetries);
     }
 
     private String exceptionMessage(String action) {
