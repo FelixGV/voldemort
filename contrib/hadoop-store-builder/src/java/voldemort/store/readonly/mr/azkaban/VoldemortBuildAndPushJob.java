@@ -393,28 +393,26 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             this.url = url;
             this.buildOutputDir = buildOutputDir;
 
-            log.debug("StorePushTask constructed for URL: " + url);
+            log.debug("StorePushTask constructed for cluster URL: " + url);
         }
 
         public Boolean call() throws Exception {
-            log.info("StorePushTask.call() invoked for URL: " + url);
+            log.info("StorePushTask.call() invoked for cluster URL: " + url);
             invokeHooks(BuildAndPushStatus.PUSHING, url);
             try {
                 runPushStore(props, url, buildOutputDir);
+                log.info("StorePushTask.call() finished for cluster URL: " + url);
+                invokeHooks(BuildAndPushStatus.SWAPPED, url);
             } catch (RecoverableFailedFetchException e) {
-                log.warn("There was a problem with some of the fetches, " +
-                        "but a swap was still able to go through for URL: " + url, e);
+                log.warn("There was a problem with some of the fetches, but a swap was still able " +
+                                 "to go through for cluster URL: " + url, e);
                 invokeHooks(BuildAndPushStatus.SWAPPED_WITH_FAILURES, url);
-                throw e;
             } catch(Exception e) {
-                log.error("Exception during push for URL: " + url, e);
+                log.error("Exception during push for cluster URL: " + url + ". Rethrowing exception.");
                 throw e;
             }
-            invokeHooks(BuildAndPushStatus.SWAPPED, url);
-            log.info("StorePushTask.call() finished for URL: " + url);
             return true;
         }
-
     }
 
     @Override
@@ -502,7 +500,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                     exceptions.put(url, e);
                 }
                 if (success) {
-                    log.info("Successfully pushed to URL: " + url);
+                    log.info("Successfully pushed to cluster URL: " + url);
                 }
             }
 
