@@ -2004,12 +2004,16 @@ public class AdminServiceRequestHandler implements RequestHandler {
             try {
                 Class<? extends FailedFetchLock> failedFetchLockClass =
                         (Class<? extends FailedFetchLock>) Class.forName(voldemortConfig.getHighAvailabilityPushLockImplementation());
+
+                // Extract properties coming from the remote BnP job...
                 Properties javaProperties = new Properties();
                 javaProperties.load(new ByteArrayInputStream(extraInfo.getBytes()));
                 Props props = new Props(javaProperties);
-                props.put(VoldemortConfig.PUSH_HA_LOCK_PATH, voldemortConfig.getHighAvailabilityPushLockPath());
-                props.put(VoldemortConfig.PUSH_HA_CLUSTER_ID, voldemortConfig.getHighAvailabilityPushClusterId());
-                distributedLock = ReflectUtils.callConstructor(failedFetchLockClass, new Object[]{props});
+
+                // Pass both server properties and the remote job's properties to the FailedFetchLock constructor
+                Object[] failedFetchLockParams = new Object[]{voldemortConfig, props};
+
+                distributedLock = ReflectUtils.callConstructor(failedFetchLockClass, failedFetchLockParams);
 
                 distributedLock.acquireLock();
 

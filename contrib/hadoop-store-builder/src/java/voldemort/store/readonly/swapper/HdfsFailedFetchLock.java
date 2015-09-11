@@ -7,10 +7,10 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
-import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apache.log4j.Priority;
 import voldemort.VoldemortException;
+import voldemort.server.VoldemortConfig;
+import voldemort.store.readonly.mr.utils.HadoopUtils;
 import voldemort.utils.Props;
 
 import java.io.IOException;
@@ -96,14 +96,15 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
     // HDFS
     private final Path lockFile = new Path(clusterDir, LOCK_NAME);
     private final Path clusterPath = new Path(clusterDir);
+    private final Path afterLockPath = new Path(afterLockDir);
     private final FileSystem fileSystem;
 
     // Internal State
     private boolean lockAcquired = false;
 
-    public HdfsFailedFetchLock(Props props) throws Exception {
-        super(props);
-        fileSystem = clusterPath.getFileSystem(new Configuration());
+    public HdfsFailedFetchLock(VoldemortConfig config, Props props) throws Exception {
+        super(config, props);
+        fileSystem = HadoopUtils.getHadoopFileSystem(config, clusterDir);
         initDirs();
     }
 
@@ -112,7 +113,7 @@ public class HdfsFailedFetchLock extends FailedFetchLock {
         boolean success = false;
         while (!success && attempts <= maxAttempts) {
             try {
-                success = this.fileSystem.mkdirs(new Path(afterLockDir));
+                success = this.fileSystem.mkdirs(afterLockPath);
 
                 if (!success) {
                     logFailureAndWait(INIT_DIRS, UNKNOWN_REASONS, attempts);
