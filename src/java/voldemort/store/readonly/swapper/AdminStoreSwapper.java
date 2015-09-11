@@ -196,7 +196,9 @@ public class AdminStoreSwapper {
             while (strategyIterator.hasNext() && !swapIsPossible) {
                 strategy = strategyIterator.next();
                 try {
+                    logger.info("About to attempt: " + strategy.toString());
                     swapIsPossible = strategy.dealWithIt(storeName, pushVersion, fetchResponseMap);
+                    logger.info("Finished executing: " + strategy.toString() + "; swapIsPossible: " + swapIsPossible);
                 } catch (Exception e) {
                     if (strategyIterator.hasNext()) {
                         logger.error("Got an exception while trying to execute: " + strategy.toString() +

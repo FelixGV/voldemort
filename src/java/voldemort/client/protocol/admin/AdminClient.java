@@ -4192,6 +4192,12 @@ public class AdminClient implements Closeable {
                                                                                     adminRequest,
                                                                                     VAdminProto.HandleFetchFailureResponse.newBuilder()).build();
 
+            if (response.getSwapIsPossible()) {
+                logger.info("Server returned successful HandleFetchFailureResponse: " + response.getInfo());
+            } else {
+                logger.error("Server returned failed HandleFetchFailureResponse: " + response.getInfo());
+            }
+
             for (VAdminProto.DisableStoreVersionResponse disableStoreVersionResponse: response.getDisableStoreResponsesList()) {
                 Node node = currentCluster.getNodeById(disableStoreVersionResponse.getNodeId());
                 String message = node.briefToString() + ": " + disableStoreVersionResponse.getInfo();
