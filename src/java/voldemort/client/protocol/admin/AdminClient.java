@@ -1021,7 +1021,6 @@ public class AdminClient implements Closeable {
         public void waitForCompletion(int nodeId, String key, String value) {
             waitForCompletion(nodeId, key, value, 0, TimeUnit.SECONDS);
         }
-
     }
 
     /**
@@ -3993,6 +3992,28 @@ public class AdminClient implements Closeable {
             return response.getFileNameList();
         }
 
+        public List<String> getSupportedROStorageCompressionCodecs() {
+            Iterator<Node> nodesIterator = currentCluster.getNodes().iterator();
+            VoldemortException lastException = null;
+            while (nodesIterator.hasNext()) {
+                Node node = nodesIterator.next();
+                try {
+                    return getSupportedROStorageCompressionCodecs(node.getId());
+                } catch (VoldemortException e) {
+                    String nextNode = "";
+                    if (nodesIterator.hasNext()) {
+                        nextNode = " Will try next node.";
+                    } else {
+                        nextNode = " Will abort, as all nodes failed.";
+                    }
+                    logger.error("Error while trying to ask " + node.briefToString() +
+                                         " for its HA settings." + nextNode);
+                    lastException = e;
+                }
+            }
+            throw new VoldemortException("Error while trying to ask the cluster for its compression settings. All nodes failed.", lastException);
+        }
+
         public List<String> getSupportedROStorageCompressionCodecs(int nodeId) {
             VAdminProto.GetROStorageCompressionCodecListRequest.Builder getRORequest = VAdminProto.GetROStorageCompressionCodecListRequest.newBuilder();
             VAdminProto.VoldemortAdminRequest adminRequest = VAdminProto.VoldemortAdminRequest.newBuilder()
@@ -4118,6 +4139,28 @@ public class AdminClient implements Closeable {
                 socketPool.checkin(destination, sands);
             }
 
+        }
+
+        public VAdminProto.GetHighAvailabilitySettingsResponse getHighAvailabilitySettings() {
+            Iterator<Node> nodesIterator = currentCluster.getNodes().iterator();
+            VoldemortException lastException = null;
+            while (nodesIterator.hasNext()) {
+                Node node = nodesIterator.next();
+                try {
+                    return getHighAvailabilitySettings(node.getId());
+                } catch (VoldemortException e) {
+                    String nextNode = "";
+                    if (nodesIterator.hasNext()) {
+                        nextNode = " Will try next node.";
+                    } else {
+                        nextNode = " Will abort, as all nodes failed.";
+                    }
+                    logger.error("Error while trying to ask " + node.briefToString() +
+                                         " for its HA settings." + nextNode);
+                    lastException = e;
+                }
+            }
+            throw new VoldemortException("Error while trying to ask the cluster for its HA settings. All nodes failed.", lastException);
         }
 
         public VAdminProto.GetHighAvailabilitySettingsResponse getHighAvailabilitySettings(Integer nodeId) {
