@@ -121,13 +121,12 @@ public abstract class SelectorManagerWorker implements Runnable {
             close();
         } catch(IOException e) {
             reportException(e);
-            logger.info("Connection reset from " + socketChannel.socket() + " with message - "
+            logger.info("Connection reset from " + socketChannel.socket() + " with message: "
                         + e.getMessage());
             close();
         } catch(Throwable t) {
-            if(logger.isEnabledFor(Level.ERROR))
-                logger.error(t.getMessage(), t);
-
+            logger.error("Caught throwable from " + socketChannel.socket() + " with message: "
+                         + t.getMessage(), t);
             close();
         }
     }

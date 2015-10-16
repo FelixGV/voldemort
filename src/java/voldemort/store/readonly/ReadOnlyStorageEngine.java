@@ -517,11 +517,18 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
                                                   fileSet.keyToStorageFormat(key.get()),
                                                   fileSet.getIndexFileSize(chunk));
             if(location >= 0) {
-                byte[] value = fileSet.readValue(key.get(), chunk, location);
-                if(value.length == 0) {
-                    return Collections.emptyList();
-                } else {
-                    return Collections.singletonList(Versioned.value(value));
+                try {
+                    byte[] value = fileSet.readValue(key.get(), chunk, location);
+                    if(value.length == 0) {
+                        return Collections.emptyList();
+                    } else {
+                        return Collections.singletonList(Versioned.value(value));
+                    }
+                } catch (RuntimeException e) {
+                    // readValue can throw IllegalArgumentExceptions when index or data files are corrupt or mismatched
+                    logger.error("Failed to execute get for store file: " + getName() +
+                                         " and Key: " + ByteUtils.toHexString(key.get()), e);
+                    throw e;
                 }
             } else {
                 return Collections.emptyList();
@@ -556,11 +563,19 @@ public class ReadOnlyStorageEngine extends AbstractStorageEngine<ByteArray, byte
             Collections.sort(keysAndValueLocations);
 
             for(KeyValueLocation keyVal: keysAndValueLocations) {
-                byte[] value = fileSet.readValue(keyVal.getKey().get(),
-                                                 keyVal.getChunk(),
-                                                 keyVal.getValueLocation());
-                if(value.length > 0)
-                    results.put(keyVal.getKey(), Collections.singletonList(Versioned.value(value)));
+                byte[] key = keyVal.getKey().get();
+                try {
+                    byte[] value = fileSet.readValue(key,
+                                                     keyVal.getChunk(),
+                                                     keyVal.getValueLocation());
+                    if(value.length > 0)
+                        results.put(keyVal.getKey(), Collections.singletonList(Versioned.value(value)));
+                } catch (RuntimeException e) {
+                    // readValue can throw IllegalArgumentExceptions when index or data files are corrupt or mismatched
+                    logger.error("Failed to execute get for store file: " + getName() +
+                                         " and Key: " + ByteUtils.toHexString(key), e);
+                    throw e;
+                }
             }
             return results;
         } finally {
