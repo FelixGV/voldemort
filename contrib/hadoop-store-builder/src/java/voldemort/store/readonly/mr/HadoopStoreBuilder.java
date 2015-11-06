@@ -88,12 +88,13 @@ public class HadoopStoreBuilder {
     private final Path inputPath;
     private final Path outputDir;
     private final Path tempDir;
-    private CheckSumType checkSumType = CheckSumType.NONE;
-    private boolean saveKeys = false;
-    private boolean reducerPerBucket = false;
-    private int numChunks = -1;
-    private boolean isAvro;
-    private Long minNumberOfRecords;
+    private final CheckSumType checkSumType;
+    private final boolean saveKeys;
+    private final boolean reducerPerBucket;
+    private int numChunksOverride;
+    private final boolean isAvro;
+    private final Long minNumberOfRecords;
+    private final boolean buildPrimaryReplicasOnly;
 
     /**
      * Create the store builder
@@ -112,12 +113,15 @@ public class HadoopStoreBuilder {
      * @param reducerPerBucket Boolean to signify whether we want to have a
 *        single reducer for a bucket ( thereby resulting in all chunk files
 *        for a bucket being generated in a single reducer )
-     * @param chunkSizeBytes Size of each chunks (ignored if numChunks is > 0)
-     * @param numChunks Number of chunks per bucket ( partition or partition
+     * @param chunkSizeBytes Size of each chunks (ignored if numChunksOverride is > 0)
+     * @param numChunksOverride Number of chunks per bucket ( partition or partition
 *        replica )
      * @param isAvro whether the data format is avro
-     * @param minNumberOfRecords
-     *
+     * @param minNumberOfRecords if job generates fewer records than this, fail.
+     * @param buildPrimaryReplicasOnly if true: build each partition only once,
+     *                                 and store the files grouped by partition.
+     *                                 if false: build all replicas redundantly,
+     *                                 and store the files grouped by node.
      */
     public HadoopStoreBuilder(Configuration conf,
                               Class mapperClass,
@@ -131,9 +135,10 @@ public class HadoopStoreBuilder {
                               boolean saveKeys,
                               boolean reducerPerBucket,
                               long chunkSizeBytes,
-                              int numChunks,
+                              int numChunksOverride,
                               boolean isAvro,
-                              Long minNumberOfRecords) {
+                              Long minNumberOfRecords,
+                              boolean buildPrimaryReplicasOnly) {
         this.config = conf;
         this.mapperClass = Utils.notNull(mapperClass);
         this.inputFormatClass = Utils.notNull(inputFormatClass);
@@ -146,18 +151,19 @@ public class HadoopStoreBuilder {
         this.saveKeys = saveKeys;
         this.reducerPerBucket = reducerPerBucket;
         this.chunkSizeBytes = chunkSizeBytes;
-        this.numChunks = numChunks;
+        this.numChunksOverride = numChunksOverride;
         this.isAvro = isAvro;
         this.minNumberOfRecords = minNumberOfRecords == null ? 1 : minNumberOfRecords;
+        this.buildPrimaryReplicasOnly = buildPrimaryReplicasOnly;
 
-        if(numChunks <= 0) {
-            logger.info("HadoopStoreBuilder constructed with numChunks <= 0, thus relying chunk size.");
+        if(numChunksOverride <= 0) {
+            logger.info("HadoopStoreBuilder constructed with numChunksOverride <= 0, thus relying chunk size.");
             if(chunkSizeBytes > MAX_CHUNK_SIZE || chunkSizeBytes < MIN_CHUNK_SIZE) {
                 throw new VoldemortException("Invalid chunk size, chunk size must be in the range "
                         + MIN_CHUNK_SIZE + "..." + MAX_CHUNK_SIZE);
             }
         } else {
-            logger.info("HadoopStoreBuilder constructed with numChunks > 0, thus ignoring chunk size.");
+            logger.info("HadoopStoreBuilder constructed with numChunksOverride > 0, thus ignoring chunk size.");
         }
     }
 
@@ -203,48 +209,46 @@ public class HadoopStoreBuilder {
             tempFs.delete(tempDir, true);
 
             long size = sizeOfPath(tempFs, inputPath);
-            logger.info("Data size = " + size + ", replication factor = "
-                        + storeDef.getReplicationFactor() + ", numNodes = "
-                        + cluster.getNumberOfNodes() + ", numPartitions = "
-                        + cluster.getNumberOfPartitions() + ", chunk size = " + chunkSizeBytes);
+            logger.info("Data size = " + size +
+                        ", replication factor = " + storeDef.getReplicationFactor() +
+                        ", numNodes = " + cluster.getNumberOfNodes() +
+                        ", numPartitions = " + cluster.getNumberOfPartitions() +
+                        ", chunk size = " + chunkSizeBytes);
 
-            // Derive "rough" number of chunks and reducers
-            int numReducers;
-            if(saveKeys) {
+            // Dynamically calculate number of chunks and reducers
 
-                if(this.numChunks == -1) {
-                    this.numChunks = Math.max((int) (storeDef.getReplicationFactor() * size
-                                                     / cluster.getNumberOfPartitions()
-                                                     / storeDef.getReplicationFactor() / chunkSizeBytes),
-                                              1);
-                } else {
-                    logger.info("Overriding chunk size byte and taking num chunks ("
-                                + this.numChunks + ") directly");
-                }
+            // Base numbers of chunks and reducers, will get modified according to various settings
+            int numChunks = (int) (size / cluster.getNumberOfPartitions() / chunkSizeBytes);
+            int numReducers = cluster.getNumberOfPartitions();
 
-                if(reducerPerBucket) {
-                    numReducers = cluster.getNumberOfPartitions() * storeDef.getReplicationFactor();
-                } else {
-                    numReducers = cluster.getNumberOfPartitions() * storeDef.getReplicationFactor()
-                                  * numChunks;
-                }
+            // In Save Keys mode, which was introduced with the READ_ONLY_V2 file format, the replicas
+            // are shuffled via additional reducers, whereas originally they were shuffled via
+            // additional chunks. Whether this distinction actually makes sense or not is an interesting
+            // question, but in order to avoid breaking anything we'll just maintain the original behavior.
+            if (saveKeys) {
+                numReducers = numReducers * storeDef.getReplicationFactor();
             } else {
-
-                if(this.numChunks == -1) {
-                    this.numChunks = Math.max((int) (storeDef.getReplicationFactor() * size
-                                                     / cluster.getNumberOfPartitions() / chunkSizeBytes),
-                                              1);
-                } else {
-                    logger.info("Overriding chunk size byte and taking num chunks ("
-                                + this.numChunks + ") directly");
-                }
-
-                if(reducerPerBucket) {
-                    numReducers = cluster.getNumberOfPartitions();
-                } else {
-                    numReducers = cluster.getNumberOfPartitions() * numChunks;
-                }
+                numChunks = numChunks * storeDef.getReplicationFactor();
             }
+
+            // Ensure at least one chunk
+            numChunks = Math.max(numChunks, 1);
+
+            if (reducerPerBucket) {
+                // Then all chunks for a given partition/replica combination are shuffled to the same
+                // reducer, hence, the number of reducers remains the same as previously defined.
+            } else {
+                // Otherwise, we want one reducer per chunk, hence we multiply the number of reducers.
+                numReducers = numReducers * numChunks;
+            }
+
+            if (this.numChunksOverride > 0) {
+                logger.info("The " + VoldemortBuildAndPushJob.NUM_CHUNKS + " setting is overridden " +
+                            "by config, so we'll use the override (" + this.numChunksOverride + ") " +
+                            "and discard the dynamically computed value (" + numChunks + ").");
+                numChunks = this.numChunksOverride;
+            }
+
             conf.setInt(VoldemortBuildAndPushJob.NUM_CHUNKS, numChunks);
             conf.setNumReduceTasks(numReducers);
 
