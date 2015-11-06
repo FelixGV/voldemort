@@ -118,8 +118,8 @@ public class BuildAndPushMapper extends AbstractStoreBuilderConfigurable {
 
             // Node id
             ByteUtils.writeInt(outputValue,
-                    partitionToNode[partitionList.get(replicaType)].getId(),
-                    0);
+                               partitionToNode[partitionList.get(replicaType)].getId(),
+                               0);
 
             if(getSaveKeys()) {
                 // Primary partition id
@@ -127,19 +127,17 @@ public class BuildAndPushMapper extends AbstractStoreBuilderConfigurable {
 
                 // Replica type
                 ByteUtils.writeBytes(outputValue,
-                        replicaType,
-                        2 * ByteUtils.SIZE_OF_INT,
-                        ByteUtils.SIZE_OF_BYTE);
+                                     replicaType,
+                                     2 * ByteUtils.SIZE_OF_INT,
+                                     ByteUtils.SIZE_OF_BYTE);
             } else {
                 // Partition id
                 ByteUtils.writeInt(outputValue,
-                        partitionList.get(replicaType),
-                        ByteUtils.SIZE_OF_INT);
+                                   partitionList.get(replicaType),
+                                   ByteUtils.SIZE_OF_INT);
             }
-            BytesWritable outputVal = new BytesWritable(outputValue);
 
             collector.collect(outputKey, outputValue);
-
         }
         md5er.reset();
     }

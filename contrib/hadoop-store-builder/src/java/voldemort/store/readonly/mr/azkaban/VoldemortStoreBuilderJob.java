@@ -68,6 +68,7 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
         private String valueField = null;
         private boolean isAvro = false;
         private long minNumberOfRecords;
+        private boolean buildPrimaryReplicasOnly;
 
         public VoldemortStoreBuilderConf(int replicationFactor,
                                          int chunkSize,
@@ -87,7 +88,8 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
                                          String keySchema,
                                          String valSchema,
                                          boolean isAvro,
-                                         long minNumberOfRecords) {
+                                         long minNumberOfRecords,
+                                         boolean buildPrimaryReplicasOnly) {
             this.replicationFactor = replicationFactor;
             this.chunkSize = chunkSize;
             this.tempDir = tempDir;
@@ -107,6 +109,7 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
             this.valSchema = valSchema;
             this.isAvro = isAvro;
             this.minNumberOfRecords = minNumberOfRecords;
+            this.buildPrimaryReplicasOnly = buildPrimaryReplicasOnly;
         }
 
         public int getReplicationFactor() {
@@ -185,6 +188,10 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
             return minNumberOfRecords;
         }
 
+        public boolean getBuildPrimaryReplicasOnly() {
+            return buildPrimaryReplicasOnly;
+        }
+
     }
 
     public void run() throws Exception {
@@ -238,7 +245,8 @@ public class VoldemortStoreBuilderJob extends AbstractHadoopJob {
                 conf.getChunkSize(),
                 conf.getNumChunks(),
                 conf.isAvro(),
-                conf.getMinNumberOfRecords());
+                conf.getMinNumberOfRecords(),
+                conf.getBuildPrimaryReplicasOnly());
         builder.build();
     }
 
