@@ -180,6 +180,7 @@ public class HadoopStoreBuilder {
                      new StoreDefinitionsMapper().writeStoreList(Collections.singletonList(storeDef)));
             conf.setBoolean(VoldemortBuildAndPushJob.SAVE_KEYS, saveKeys);
             conf.setBoolean(VoldemortBuildAndPushJob.REDUCER_PER_BUCKET, reducerPerBucket);
+            conf.setBoolean(VoldemortBuildAndPushJob.BUILD_PRIMARY_REPLICAS_ONLY, buildPrimaryReplicasOnly);
             if(!isAvro) {
                 conf.setPartitionerClass(HadoopStoreBuilderPartitioner.class);
                 conf.setMapperClass(mapperClass);
@@ -226,7 +227,14 @@ public class HadoopStoreBuilder {
             // additional chunks. Whether this distinction actually makes sense or not is an interesting
             // question, but in order to avoid breaking anything we'll just maintain the original behavior.
             if (saveKeys) {
-                numReducers = numReducers * storeDef.getReplicationFactor();
+                if (buildPrimaryReplicasOnly) {
+                    // The buildPrimaryReplicasOnly mode is supported exclusively in combination with
+                    // saveKeys. If enabled, then we don't want to shuffle extra keys redundantly,
+                    // hence we don't change the number of reducers.
+                } else {
+                    // Old behavior, where all keys are redundantly shuffled to redundant reducers.
+                    numReducers = numReducers * storeDef.getReplicationFactor();
+                }
             } else {
                 numChunks = numChunks * storeDef.getReplicationFactor();
             }
