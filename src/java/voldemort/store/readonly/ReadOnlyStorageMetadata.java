@@ -142,11 +142,19 @@ public class ReadOnlyStorageMetadata {
     public String toString() {
         StringBuilder sb = new StringBuilder("ReadOnlyStorageMetadata( ");
         sb.append("\n");
+        boolean first = true;
         for(String key: this.properties.keySet()) {
-            sb.append(key + " : " + properties.get(key) + ",");
-            sb.append("\n");
+            if (first) {
+                first = false;
+            } else {
+                sb.append(",");
+                sb.append("\n");
+            }
+            sb.append(key);
+            sb.append(" : ");
+            sb.append(properties.get(key).toString());
         }
-        sb.append(")");
+        sb.append("\n)");
 
         return sb.toString();
     }

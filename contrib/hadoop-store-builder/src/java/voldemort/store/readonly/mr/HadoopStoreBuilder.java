@@ -312,40 +312,46 @@ public class HadoopStoreBuilder {
                                              + this.checkSumType);
             }
 
-            // Check if all folder exists and with format file
-            for(Node node: cluster.getNodes()) {
+            if (buildPrimaryReplicasOnly) {
+                // Files are grouped by partitions
 
-                ReadOnlyStorageMetadata metadata = new ReadOnlyStorageMetadata();
+            } else {
+                // Files are grouped by node
 
-                if(saveKeys) {
-                    metadata.add(ReadOnlyStorageMetadata.FORMAT,
-                                 ReadOnlyStorageFormat.READONLY_V2.getCode());
-                } else {
-                    metadata.add(ReadOnlyStorageMetadata.FORMAT,
-                                 ReadOnlyStorageFormat.READONLY_V1.getCode());
+                // Check if all folder exists and with format file
+                for(Node node: cluster.getNodes()) {
+
+                    ReadOnlyStorageMetadata metadata = new ReadOnlyStorageMetadata();
+
+                    if(saveKeys) {
+                        metadata.add(ReadOnlyStorageMetadata.FORMAT,
+                                     ReadOnlyStorageFormat.READONLY_V2.getCode());
+                    } else {
+                        metadata.add(ReadOnlyStorageMetadata.FORMAT,
+                                     ReadOnlyStorageFormat.READONLY_V1.getCode());
+                    }
+
+                    Path nodePath = new Path(outputDir.toString(), "node-" + node.getId());
+
+                    if(!outputFs.exists(nodePath)) {
+                        logger.info("No data generated for node " + node.getId()
+                                            + ". Generating empty folder");
+                        outputFs.mkdirs(nodePath); // Create empty folder
+                        outputFs.setPermission(nodePath, new FsPermission(HADOOP_FILE_PERMISSION));
+                        logger.info("Setting permission to 755 for " + nodePath);
+                    }
+
+                    processCheckSumMetadataFile(node, outputFs, checkSumGenerator, nodePath, metadata);
+
+                    // Write metadata
+                    Path metadataPath = new Path(nodePath, ".metadata");
+                    FSDataOutputStream metadataStream = outputFs.create(metadataPath);
+                    outputFs.setPermission(metadataPath, new FsPermission(HADOOP_FILE_PERMISSION));
+                    logger.info("Setting permission to 755 for " + metadataPath);
+                    metadataStream.write(metadata.toJsonString().getBytes());
+                    metadataStream.flush();
+                    metadataStream.close();
                 }
-
-                Path nodePath = new Path(outputDir.toString(), "node-" + node.getId());
-
-                if(!outputFs.exists(nodePath)) {
-                    logger.info("No data generated for node " + node.getId()
-                                + ". Generating empty folder");
-                    outputFs.mkdirs(nodePath); // Create empty folder
-                    outputFs.setPermission(nodePath, new FsPermission(HADOOP_FILE_PERMISSION));
-                    logger.info("Setting permission to 755 for " + nodePath);
-                }
-
-                processCheckSumMetadataFile(node, outputFs, checkSumGenerator, nodePath, metadata);
-
-                // Write metadata
-                Path metadataPath = new Path(nodePath, ".metadata");
-                FSDataOutputStream metadataStream = outputFs.create(metadataPath);
-                outputFs.setPermission(metadataPath, new FsPermission(HADOOP_FILE_PERMISSION));
-                logger.info("Setting permission to 755 for " + metadataPath);
-                metadataStream.write(metadata.toJsonString().getBytes());
-                metadataStream.flush();
-                metadataStream.close();
-
             }
 
         } catch(Exception e) {
@@ -401,10 +407,8 @@ public class HadoopStoreBuilder {
             for(FileStatus file: storeFiles) {
                 try {
                     // HDFS NameNodes can sometimes GC for extended periods
-                    // of time,
-                    // hence the exponential back-off strategy below.
-                    // TODO: Refactor all BnP/Voldemort retry code into a
-                    // pluggable/configurable mechanism
+                    // of time, hence the exponential back-off strategy below.
+                    // TODO: Refactor all BnP retry code into a pluggable mechanism
 
                     int totalAttempts = 4;
                     int attemptsRemaining = totalAttempts;
@@ -417,8 +421,7 @@ public class HadoopStoreBuilder {
                                 throw e;
                             }
 
-                            // Exponential back-off sleep times: 5s, 25s,
-                            // 45s.
+                            // Exponential back-off sleep times: 5s, 25s, 45s.
                             int sleepTime = ((totalAttempts - attemptsRemaining) ^ 2) * 5;
                             logger.error("Error getting checksum file from HDFS. Retries left: "
                                          + attemptsRemaining + ". Back-off until next retry: "
