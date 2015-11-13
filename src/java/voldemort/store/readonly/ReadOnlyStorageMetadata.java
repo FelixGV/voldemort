@@ -61,7 +61,21 @@ public class ReadOnlyStorageMetadata {
         return properties.isEmpty();
     }
 
+    /**
+     * Add a simple String property to the metadata.
+     * @param key String for the name of the property
+     * @param value String for the value of the property
+     */
     public void add(String key, String value) {
+        properties.put(key, value);
+    }
+
+    /**
+     * Add a nested metadata object into this metadata.
+     * @param key String for the name of the metadata object.
+     * @param value {@link ReadOnlyStorageMetadata} to add.
+     */
+    public void addNestedMetadata(String key, ReadOnlyStorageMetadata value) {
         properties.put(key, value);
     }
 
@@ -140,23 +154,10 @@ public class ReadOnlyStorageMetadata {
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder("ReadOnlyStorageMetadata( ");
-        sb.append("\n");
-        boolean first = true;
-        for(String key: this.properties.keySet()) {
-            if (first) {
-                first = false;
-            } else {
-                sb.append(",");
-                sb.append("\n");
-            }
-            sb.append(key);
-            sb.append(" : ");
-            sb.append(properties.get(key).toString());
+        try {
+            return toJsonString();
+        } catch (IOException e) {
+            return "Cannot parse malformed ReadOnlyStorageMetadata!";
         }
-        sb.append("\n)");
-
-        return sb.toString();
     }
-
 }

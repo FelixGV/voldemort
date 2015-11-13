@@ -21,7 +21,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 
+import com.google.common.collect.Lists;
 import org.apache.avro.Schema;
 import org.apache.avro.mapred.AvroJob;
 import org.apache.avro.mapred.AvroOutputFormat;
@@ -52,8 +54,9 @@ import voldemort.VoldemortException;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
 import voldemort.store.StoreDefinition;
-import voldemort.store.readonly.ReadOnlyStorageFormat;
 import voldemort.store.readonly.ReadOnlyStorageMetadata;
+import voldemort.store.readonly.ReadOnlyStorageFormat;
+import voldemort.store.readonly.ReadOnlyUtils;
 import voldemort.store.readonly.checksum.CheckSum;
 import voldemort.store.readonly.checksum.CheckSum.CheckSumType;
 import voldemort.store.readonly.checksum.CheckSumMetadata;
@@ -312,53 +315,81 @@ public class HadoopStoreBuilder {
                                              + this.checkSumType);
             }
 
+            List<String> directories = Lists.newArrayList();
             if (buildPrimaryReplicasOnly) {
                 // Files are grouped by partitions
-
+                for(int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
+                    directories.add("partition-" + partitionId);
+                }
             } else {
                 // Files are grouped by node
-
-                // Check if all folder exists and with format file
                 for(Node node: cluster.getNodes()) {
-
-                    ReadOnlyStorageMetadata metadata = new ReadOnlyStorageMetadata();
-
-                    if(saveKeys) {
-                        metadata.add(ReadOnlyStorageMetadata.FORMAT,
-                                     ReadOnlyStorageFormat.READONLY_V2.getCode());
-                    } else {
-                        metadata.add(ReadOnlyStorageMetadata.FORMAT,
-                                     ReadOnlyStorageFormat.READONLY_V1.getCode());
-                    }
-
-                    Path nodePath = new Path(outputDir.toString(), "node-" + node.getId());
-
-                    if(!outputFs.exists(nodePath)) {
-                        logger.info("No data generated for node " + node.getId()
-                                            + ". Generating empty folder");
-                        outputFs.mkdirs(nodePath); // Create empty folder
-                        outputFs.setPermission(nodePath, new FsPermission(HADOOP_FILE_PERMISSION));
-                        logger.info("Setting permission to 755 for " + nodePath);
-                    }
-
-                    processCheckSumMetadataFile(node, outputFs, checkSumGenerator, nodePath, metadata);
-
-                    // Write metadata
-                    Path metadataPath = new Path(nodePath, ".metadata");
-                    FSDataOutputStream metadataStream = outputFs.create(metadataPath);
-                    outputFs.setPermission(metadataPath, new FsPermission(HADOOP_FILE_PERMISSION));
-                    logger.info("Setting permission to 755 for " + metadataPath);
-                    metadataStream.write(metadata.toJsonString().getBytes());
-                    metadataStream.flush();
-                    metadataStream.close();
+                    directories.add("node-" + node.getId());
                 }
             }
+
+            ReadOnlyStorageMetadata fullStoreMetadata = new ReadOnlyStorageMetadata();
+
+            // Check if all folder exists and with format file
+            for(String directoryName: directories) {
+
+                ReadOnlyStorageMetadata metadata = new ReadOnlyStorageMetadata();
+
+                if(saveKeys) {
+                    metadata.add(ReadOnlyStorageMetadata.FORMAT,
+                                 ReadOnlyStorageFormat.READONLY_V2.getCode());
+                } else {
+                    metadata.add(ReadOnlyStorageMetadata.FORMAT,
+                                 ReadOnlyStorageFormat.READONLY_V1.getCode());
+                }
+
+                Path directoryPath = new Path(outputDir.toString(), directoryName);
+
+                if(!outputFs.exists(directoryPath)) {
+                    logger.info("No data generated for " + directoryName
+                                        + ". Generating empty folder");
+                    outputFs.mkdirs(directoryPath); // Create empty folder
+                    outputFs.setPermission(directoryPath, new FsPermission(HADOOP_FILE_PERMISSION));
+                    logger.info("Setting permission to 755 for " + directoryPath);
+                }
+
+                processCheckSumMetadataFile(directoryName, outputFs, checkSumGenerator, directoryPath, metadata);
+
+                // Write the directory-specific metadata file
+                writeMetadataFile(directoryPath, outputFs, directoryName, metadata);
+
+                fullStoreMetadata.addNestedMetadata(directoryName, metadata);
+            }
+
+            // Write the aggregate metadata file
+            writeMetadataFile(outputDir, outputFs, "full-store", fullStoreMetadata);
 
         } catch(Exception e) {
             logger.error("Error in Store builder", e);
             throw new VoldemortException(e);
         }
+    }
 
+    /**
+     * Persists a *.metadata file to a specific directory in HDFS.
+     *
+     * @param directoryPath where to write the metadata file.
+     * @param outputFs {@link org.apache.hadoop.fs.FileSystem} where to write the file
+     * @param metadataFileName prefix (i.e.: without extension) of the name of the file
+     * @param metadata {@link voldemort.store.readonly.ReadOnlyStorageMetadata} to persist on HDFS
+     * @throws IOException if the FileSystem operations fail
+     */
+    private void writeMetadataFile(Path directoryPath,
+                                   FileSystem outputFs,
+                                   String metadataFileName,
+                                   ReadOnlyStorageMetadata metadata) throws IOException {
+        Path metadataPath = new Path(directoryPath, metadataFileName + ReadOnlyUtils.METADATA_FILE_EXTENSION);
+        FSDataOutputStream metadataStream = outputFs.create(metadataPath);
+        outputFs.setPermission(metadataPath, new FsPermission(HADOOP_FILE_PERMISSION));
+        logger.info("Setting permission to 755 for " + metadataPath);
+        metadataStream.write(metadata.toJsonString().getBytes());
+        metadataStream.flush();
+        metadataStream.close();
     }
 
     /**
@@ -372,18 +403,18 @@ public class HadoopStoreBuilder {
      * 
      * Finally updates the metadata file with those information
      * 
-     * @param node
+     * @param directoryName
      * @param outputFs
      * @param checkSumGenerator
      * @param nodePath
      * @param metadata
      * @throws IOException
      */
-    private void processCheckSumMetadataFile(Node node,
-                                            FileSystem outputFs,
-                                            CheckSum checkSumGenerator,
-                                            Path nodePath,
-                                            ReadOnlyStorageMetadata metadata) throws IOException {
+    private void processCheckSumMetadataFile(String directoryName,
+                                             FileSystem outputFs,
+                                             CheckSum checkSumGenerator,
+                                             Path nodePath,
+                                             ReadOnlyStorageMetadata metadata) throws IOException {
 
         long dataSizeInBytes = 0L;
         long indexSizeInBytes = 0L;
@@ -465,8 +496,8 @@ public class HadoopStoreBuilder {
 
             // update metadata
             long diskSizeForNodeInBytes = dataSizeInBytes + indexSizeInBytes;
-            logger.info("Estimated disk size for store " + this.storeDef.getName() + " in node "
-                        + node.briefToString() + " in KB: "
+            logger.info("Estimated disk size for store " + this.storeDef.getName() + " in "
+                        + directoryName + " in KB: "
                         + (diskSizeForNodeInBytes / ByteUtils.BYTES_PER_KB));
             metadata.add(ReadOnlyStorageMetadata.DISK_SIZE_IN_BYTES,
                          Long.toString(diskSizeForNodeInBytes));
@@ -474,7 +505,7 @@ public class HadoopStoreBuilder {
                 metadata.add(ReadOnlyStorageMetadata.CHECKSUM_TYPE, CheckSum.toString(checkSumType));
 
                 String checkSum = new String(Hex.encodeHex(checkSumGenerator.getCheckSum()));
-                logger.info("Checksum for node " + node.getId() + " - " + checkSum);
+                logger.info("Checksum for node " + directoryName + " - " + checkSum);
 
                 metadata.add(ReadOnlyStorageMetadata.CHECKSUM, checkSum);
             }
