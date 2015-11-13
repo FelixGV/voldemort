@@ -712,7 +712,8 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                 hdfsFetcherPort,
                 maxNodeFailures,
                 failedFetchStrategyList,
-                url).run();
+                url,
+                buildPrimaryReplicasOnly).run();
     }
 
     /**
