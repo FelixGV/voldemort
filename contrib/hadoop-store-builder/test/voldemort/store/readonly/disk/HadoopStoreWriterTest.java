@@ -24,6 +24,7 @@ import voldemort.store.readonly.checksum.CheckSum;
 import voldemort.store.readonly.mr.azkaban.VoldemortBuildAndPushJob;
 import voldemort.store.readonly.utils.ReadOnlyTestUtils;
 import voldemort.utils.ByteUtils;
+import voldemort.xml.ClusterMapper;
 import voldemort.xml.StoreDefinitionsMapper;
 
 @RunWith(Parameterized.class)
@@ -86,7 +87,8 @@ public class HadoopStoreWriterTest {
         List<StoreDefinition> storeDefList = ServerTestUtils.getStoreDefs(1);
         String storesXML = new StoreDefinitionsMapper().writeStoreList(storeDefList);
         conf.set("stores.xml", storesXML);
-
+        String clusterXML = new ClusterMapper().writeCluster(ServerTestUtils.getLocalCluster(1));
+        conf.set("cluster.xml", clusterXML);
     }
 
     private void cleanUp() throws IOException {
