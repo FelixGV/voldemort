@@ -13,6 +13,7 @@ import voldemort.client.protocol.admin.AdminClient;
 import voldemort.client.protocol.admin.AdminClientConfig;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
+import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.store.quota.QuotaExceededException;
 import voldemort.store.readonly.ReadOnlyUtils;
 import voldemort.utils.CmdUtils;
@@ -43,6 +44,7 @@ public class AdminStoreSwapper {
     private long timeoutMs;
     private boolean rollbackFailedSwap = false;
     private final List<FailedFetchStrategy> failedFetchStrategyList;
+    private final boolean buildPrimaryReplicasOnly;
 
     protected final Cluster cluster;
     protected final ExecutorService executor;
@@ -63,7 +65,8 @@ public class AdminStoreSwapper {
                              long timeoutMs,
                              boolean rollbackFailedSwap,
                              List<FailedFetchStrategy> failedFetchStrategyList,
-                             String clusterName) {
+                             String clusterName,
+                             boolean buildPrimaryReplicasOnly) {
         this.cluster = cluster;
         this.executor = executor;
         this.adminClient = adminClient;
@@ -75,6 +78,7 @@ public class AdminStoreSwapper {
         } else {
             this.logger = PrefixedLogger.getLogger(AdminStoreSwapper.class.getName(), clusterName);
         }
+        this.buildPrimaryReplicasOnly = buildPrimaryReplicasOnly;
     }
 
 
@@ -95,7 +99,7 @@ public class AdminStoreSwapper {
                              long timeoutMs,
                              boolean deleteFailedFetch,
                              boolean rollbackFailedSwap) {
-        this(cluster, executor, adminClient, timeoutMs, rollbackFailedSwap, new ArrayList<FailedFetchStrategy>(), null);
+        this(cluster, executor, adminClient, timeoutMs, rollbackFailedSwap, new ArrayList<FailedFetchStrategy>(), null, false);
         if (deleteFailedFetch) {
             failedFetchStrategyList.add(new DeleteAllFailedFetchStrategy(adminClient));
         }
@@ -112,7 +116,7 @@ public class AdminStoreSwapper {
                              ExecutorService executor,
                              AdminClient adminClient,
                              long timeoutMs) {
-        this(cluster, executor, adminClient, timeoutMs, false, new ArrayList<FailedFetchStrategy>(), null);
+        this(cluster, executor, adminClient, timeoutMs, false, new ArrayList<FailedFetchStrategy>(), null, false);
     }
 
     public void swapStoreData(String storeName, String basePath, long pushVersion) {
@@ -149,22 +153,49 @@ public class AdminStoreSwapper {
                                     final String basePath,
                                     final long pushVersion) {
         // do fetch
-        Map<Integer, Future<String>> fetchDirs = new HashMap<Integer, Future<String>>();
+        final Map<Integer, Future<String>> fetchDirs = new HashMap<Integer, Future<String>>();
         for(final Node node: cluster.getNodes()) {
             fetchDirs.put(node.getId(), executor.submit(new Callable<String>() {
 
                 public String call() throws Exception {
-                    String storeDir = basePath + "/node-" + node.getId();
-                    logger.info("Invoking fetch for " + node.briefToString() + " for " + storeDir);
-                    String response = adminClient.readonlyOps.fetchStore(node.getId(),
-                                                                         storeName,
-                                                                         storeDir,
-                                                                         pushVersion,
-                                                                         timeoutMs);
+                    String response = null;
+                    if (buildPrimaryReplicasOnly) {
+                        // Then we need to fetch each individual partition directory
+                        ConsistentRoutingStrategy routingStrategy = new ConsistentRoutingStrategy(cluster, 2);
+                        for (int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
+                            if (routingStrategy.getReplicatingPartitionList(partitionId).contains(node.getId())) {
+                                // Then we need to fetch that partition
+                                String storeDir = basePath + "/partition-" + partitionId;
+                                String newResponse = fetch(storeDir);
+                                if (response == null) {
+                                    response = newResponse;
+                                } else if (!response.equals(newResponse)) {
+                                    logger.error("Unexpected! The fetchStore admin API returned two different " +
+                                                 "responses on consecutive calls! Old response: " + response +
+                                                 " and new response: " + newResponse);
+                                }
+                            }
+                        }
+                    } else {
+                        // Old behavior: fetch the node directory
+                        String storeDir = basePath + "/node-" + node.getId();
+                        response = fetch(storeDir);
+                    }
+
                     if(response == null)
                         throw new VoldemortException("Fetch request on " + node.briefToString() + " failed");
                     logger.info("Fetch succeeded on " + node.briefToString());
                     return response.trim();
+                }
+
+                private String fetch(String storeDir) {
+                    // TODO: Catch specific exception if async task status is not found, and retry in that case.
+                    logger.info("Invoking fetch for " + node.briefToString() + " for " + storeDir);
+                    return adminClient.readonlyOps.fetchStore(node.getId(),
+                                                              storeName,
+                                                              storeDir,
+                                                              pushVersion,
+                                                              timeoutMs);
                 }
             }));
         }
