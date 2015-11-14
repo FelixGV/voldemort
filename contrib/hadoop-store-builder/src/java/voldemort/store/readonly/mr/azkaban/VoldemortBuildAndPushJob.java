@@ -163,7 +163,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
     private final ExecutorService executorService;
 
     // Mutable state
-    private List<StoreDefinition> storeDefs;
+    private StoreDefinition storeDef;
     private Path sanitizedInputPath = null;
     private Schema inputPathAvroSchema = null;
     private JsonSchema inputPathJsonSchema = null;
@@ -626,7 +626,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
                         outputDir,
                         inputPath,
                         cluster,
-                        this.storeDefs,
+                        this.storeDef,
                         this.storeName,
                         checkSumType,
                         saveKeys,
@@ -881,7 +881,7 @@ public class VoldemortBuildAndPushJob extends AbstractJob {
             // Next time BnP is run while the node is up, it will get the store created.
         } // Other exceptions need to bubble up!
 
-        storeDefs = ImmutableList.of(newStoreDef);
+        storeDef = newStoreDef;
     }
 
     private class HeartBeatHookRunnable implements Runnable {

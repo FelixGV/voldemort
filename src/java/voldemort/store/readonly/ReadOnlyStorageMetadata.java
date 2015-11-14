@@ -87,6 +87,18 @@ public class ReadOnlyStorageMetadata {
         return properties.get(key);
     }
 
+    public ReadOnlyStorageMetadata getNestedMetadata(String key) {
+        Object metadataObject = properties.get(key);
+        if (metadataObject == null) {
+            return null;
+        } else if (metadataObject instanceof ReadOnlyStorageMetadata) {
+            return (ReadOnlyStorageMetadata) metadataObject;
+        } else {
+            throw new IllegalArgumentException("The metadata key '" + key + "' does not contain nested metadata! " +
+                                               "It contains: " + metadataObject.toString());
+        }
+    }
+
     public CheckSumType getCheckSumType() {
         String checkSumType = (String) get(CHECKSUM_TYPE);
         if(checkSumType == null) {

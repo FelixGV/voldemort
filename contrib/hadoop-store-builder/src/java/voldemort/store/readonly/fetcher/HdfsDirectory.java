@@ -135,4 +135,7 @@ public class HdfsDirectory {
         return this.metadata;
     }
 
+    public String toString() {
+        return source.toString();
+    }
 }

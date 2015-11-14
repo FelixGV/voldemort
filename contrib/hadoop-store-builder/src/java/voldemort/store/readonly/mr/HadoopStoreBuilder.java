@@ -319,12 +319,12 @@ public class HadoopStoreBuilder {
             if (buildPrimaryReplicasOnly) {
                 // Files are grouped by partitions
                 for(int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
-                    directories.add("partition-" + partitionId);
+                    directories.add(ReadOnlyUtils.PARTITION_DIRECTORY_PREFIX + partitionId);
                 }
             } else {
                 // Files are grouped by node
                 for(Node node: cluster.getNodes()) {
-                    directories.add("node-" + node.getId());
+                    directories.add(ReadOnlyUtils.NODE_DIRECTORY_PREFIX + node.getId());
                 }
             }
 
@@ -355,14 +355,19 @@ public class HadoopStoreBuilder {
 
                 processCheckSumMetadataFile(directoryName, outputFs, checkSumGenerator, directoryPath, metadata);
 
-                // Write the directory-specific metadata file
-                writeMetadataFile(directoryPath, outputFs, directoryName, metadata);
+                if (buildPrimaryReplicasOnly) {
+                    // In buildPrimaryReplicasOnly mode, writing a metadata file for each partitions
+                    // takes too long, so we skip it. We will rely on the full-store.metadata file instead.
+                } else {
+                    // Maintaining the old behavior: we write the node-specific metadata file
+                    writeMetadataFile(directoryPath, outputFs, directoryName, metadata);
+                }
 
                 fullStoreMetadata.addNestedMetadata(directoryName, metadata);
             }
 
             // Write the aggregate metadata file
-            writeMetadataFile(outputDir, outputFs, "full-store", fullStoreMetadata);
+            writeMetadataFile(outputDir, outputFs, ReadOnlyUtils.FULL_STORE_METADATA_FILE_PREFIX, fullStoreMetadata);
 
         } catch(Exception e) {
             logger.error("Error in Store builder", e);
