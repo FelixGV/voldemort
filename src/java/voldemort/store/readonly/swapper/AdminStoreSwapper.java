@@ -13,7 +13,6 @@ import voldemort.client.protocol.admin.AdminClient;
 import voldemort.client.protocol.admin.AdminClientConfig;
 import voldemort.cluster.Cluster;
 import voldemort.cluster.Node;
-import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.store.quota.QuotaExceededException;
 import voldemort.store.readonly.ReadOnlyUtils;
 import voldemort.utils.CmdUtils;
@@ -58,6 +57,7 @@ public class AdminStoreSwapper {
      * @param rollbackFailedSwap Boolean to indicate we want to rollback the
      * @param failedFetchStrategyList list of {@link FailedFetchStrategy} to execute in case of failure
      * @param clusterName String added as a prefix to all logs. If null, there is no prefix on the logs.
+     * @param buildPrimaryReplicasOnly if true, fetch is per partition, if false (old behavior) then fetch is per node
      */
     public AdminStoreSwapper(Cluster cluster,
                              ExecutorService executor,
@@ -160,25 +160,11 @@ public class AdminStoreSwapper {
                 public String call() throws Exception {
                     String response = null;
                     if (buildPrimaryReplicasOnly) {
-                        // Then we need to fetch each individual partition directory
-                        ConsistentRoutingStrategy routingStrategy = new ConsistentRoutingStrategy(cluster, 2);
-                        for (int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
-                            if (routingStrategy.getReplicatingPartitionList(partitionId).contains(node.getId())) {
-                                // Then we need to fetch that partition
-                                String storeDir = basePath + "/partition-" + partitionId;
-                                String newResponse = fetch(storeDir);
-                                if (response == null) {
-                                    response = newResponse;
-                                } else if (!response.equals(newResponse)) {
-                                    logger.error("Unexpected! The fetchStore admin API returned two different " +
-                                                 "responses on consecutive calls! Old response: " + response +
-                                                 " and new response: " + newResponse);
-                                }
-                            }
-                        }
+                        // Then we give the root directory to the server and let it decide what to fetch
+                        response = fetch(basePath);
                     } else {
-                        // Old behavior: fetch the node directory
-                        String storeDir = basePath + "/node-" + node.getId();
+                        // Old behavior: fetch the node directory only
+                        String storeDir = basePath + "/" + ReadOnlyUtils.NODE_DIRECTORY_PREFIX + node.getId();
                         response = fetch(storeDir);
                     }
 
