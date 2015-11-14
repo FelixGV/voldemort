@@ -91,9 +91,11 @@ public class ReadOnlyStorageMetadata {
         Object metadataObject = properties.get(key);
         if (metadataObject == null) {
             return null;
-        } else if (metadataObject instanceof String) {
+        } else if (metadataObject instanceof ReadOnlyStorageMetadata) {
+            return (ReadOnlyStorageMetadata) metadataObject;
+        } else if (metadataObject instanceof Map) {
             try {
-                return new ReadOnlyStorageMetadata((String) metadataObject);
+                return new ReadOnlyStorageMetadata((Map<String, Object>) metadataObject);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Could not parse ReadOnlyStorageMetadata for key '" + key + "'. " +
                         "It contains: " + metadataObject.toString());
