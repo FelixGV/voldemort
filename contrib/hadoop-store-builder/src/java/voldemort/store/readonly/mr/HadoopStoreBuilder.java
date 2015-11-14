@@ -287,7 +287,8 @@ public class HadoopStoreBuilder {
             }
 
             logger.info("Number of chunks: " + numChunks + ", number of reducers: " + numReducers
-                        + ", save keys: " + saveKeys + ", reducerPerBucket: " + reducerPerBucket);
+                        + ", save keys: " + saveKeys + ", reducerPerBucket: " + reducerPerBucket
+                        + ", buildPrimaryReplicasOnly: " + buildPrimaryReplicasOnly);
             logger.info("Building store...");
             RunningJob job = JobClient.runJob(conf);
 
