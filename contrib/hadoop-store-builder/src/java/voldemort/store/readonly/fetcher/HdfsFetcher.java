@@ -19,6 +19,7 @@ package voldemort.store.readonly.fetcher;
 import java.io.File;
 import java.io.IOException;
 import java.text.NumberFormat;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -277,11 +278,12 @@ public class HdfsFetcher implements FileFetcher {
                         RoutingStrategy routingStrategy = new RoutingStrategyFactory().updateRoutingStrategy(storeDefinition, cluster);
                         for (int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
                             if (routingStrategy.getReplicatingPartitionList(partitionId).contains(nodeId)) {
-                                // Then we need to fetch that partition, so we add its size to
+                                // Then we need to fetch that partition, and add its size to the total
                                 String partitionKey = ReadOnlyUtils.PARTITION_DIRECTORY_PREFIX + partitionId;
                                 ReadOnlyStorageMetadata partitionMetadata = rootDirectory.getMetadata().getNestedMetadata(partitionKey);
                                 String diskSizeInBytes = (String) partitionMetadata.get(ReadOnlyStorageMetadata.DISK_SIZE_IN_BYTES);
                                 if (diskSizeInBytes != null && diskSizeInBytes != "") {
+                                    logger.debug("Partition " + partitionId + " is assigned to this node and is not empty, so it will be downloaded.");
                                     if (estimatedDiskSize == -1) {
                                         estimatedDiskSize = Long.parseLong(diskSizeInBytes);
                                     } else {
@@ -289,7 +291,11 @@ public class HdfsFetcher implements FileFetcher {
                                     }
                                     HdfsDirectory partitionDirectory = new HdfsDirectory(fs, new Path(rootPath, partitionKey));
                                     directoriesToFetch.add(partitionDirectory);
-                                } // else, it means the partition is empty, no need to fetch it.
+                                } else {
+                                    logger.debug("Partition " + partitionId + " is assigned to this node but it is empty, so it will be skipped.");
+                                }
+                            } else {
+                                logger.debug("Partition " + partitionId + " is not assigned to this node, so it will be skipped.");
                             }
                         }
                     } else {
@@ -323,10 +329,10 @@ public class HdfsFetcher implements FileFetcher {
                                          destination,
                                          estimatedDiskSize);
                 } else {
-                    if(logger.isDebugEnabled()) {
-                        logger.debug("store: " + storeName + " is a Non Quota type store.");
-                    }
+                    logger.debug("store: " + storeName + " is a Non Quota type store.");
                 }
+
+                logger.debug("directoriesToFetch for store '" + storeName + "': " + Arrays.toString(directoriesToFetch.toArray()));
                 for (HdfsDirectory directoryToFetch: directoriesToFetch) {
                     Map<HdfsFile, byte[]> fileCheckSumMap = fetchStrategy.fetch(directoryToFetch, destination);
                     if(rootDirectory.validateCheckSum(fileCheckSumMap)) {
