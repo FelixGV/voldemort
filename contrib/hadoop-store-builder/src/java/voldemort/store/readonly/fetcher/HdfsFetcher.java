@@ -274,16 +274,24 @@ public class HdfsFetcher implements FileFetcher {
                         // partitions sub-directories to download
                         StoreDefinition storeDefinition = metadataStore.getStoreDef(storeName);
                         Cluster cluster = metadataStore.getCluster();
-                        int nodeId = metadataStore.getNodeId();
+                        List<Integer> partitionsMasteredByCurrentNode = cluster.getNodeById(metadataStore.getNodeId()).getPartitionIds();
                         RoutingStrategy routingStrategy = new RoutingStrategyFactory().updateRoutingStrategy(storeDefinition, cluster);
                         for (int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
-                            if (routingStrategy.getReplicatingPartitionList(partitionId).contains(nodeId)) {
+                            // For each partition in the cluster, determine if it needs to be served by the current node
+                            boolean currentPartitionIsServedByCurrentNode = false;
+                            for (Integer replicatingPartition: routingStrategy.getReplicatingPartitionList(partitionId)) {
+                                if (partitionsMasteredByCurrentNode.contains(replicatingPartition)) {
+                                    currentPartitionIsServedByCurrentNode = true;
+                                    break;
+                                }
+                            }
+                            if (currentPartitionIsServedByCurrentNode) {
                                 // Then we need to fetch that partition, and add its size to the total
                                 String partitionKey = ReadOnlyUtils.PARTITION_DIRECTORY_PREFIX + partitionId;
                                 ReadOnlyStorageMetadata partitionMetadata = rootDirectory.getMetadata().getNestedMetadata(partitionKey);
                                 String diskSizeInBytes = (String) partitionMetadata.get(ReadOnlyStorageMetadata.DISK_SIZE_IN_BYTES);
                                 if (diskSizeInBytes != null && diskSizeInBytes != "") {
-                                    logger.debug("Partition " + partitionId + " is assigned to this node and is not empty, so it will be downloaded.");
+                                    logger.debug("Partition " + partitionId + " is served by this node and is not empty, so it will be downloaded.");
                                     if (estimatedDiskSize == -1) {
                                         estimatedDiskSize = Long.parseLong(diskSizeInBytes);
                                     } else {
@@ -292,10 +300,10 @@ public class HdfsFetcher implements FileFetcher {
                                     HdfsDirectory partitionDirectory = new HdfsDirectory(fs, new Path(rootPath, partitionKey));
                                     directoriesToFetch.add(partitionDirectory);
                                 } else {
-                                    logger.debug("Partition " + partitionId + " is assigned to this node but it is empty, so it will be skipped.");
+                                    logger.debug("Partition " + partitionId + " is served by this node but it is empty, so it will be skipped.");
                                 }
                             } else {
-                                logger.debug("Partition " + partitionId + " is not assigned to this node, so it will be skipped.");
+                                logger.debug("Partition " + partitionId + " is not served by this node, so it will be skipped.");
                             }
                         }
                     } else {
