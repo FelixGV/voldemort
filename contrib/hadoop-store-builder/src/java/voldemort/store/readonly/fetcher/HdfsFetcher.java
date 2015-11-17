@@ -271,21 +271,21 @@ public class HdfsFetcher implements FileFetcher {
 
                     if (metadataFile.getDiskFileName().equals(ReadOnlyUtils.FULL_STORE_METADATA_FILE)) {
                         // Then we are in build.primary.replica.only mode, and we need to determine which
-                        // partitions sub-directories to download
+                        // partition sub-directories to download
                         StoreDefinition storeDefinition = metadataStore.getStoreDef(storeName);
                         Cluster cluster = metadataStore.getCluster();
                         List<Integer> partitionsMasteredByCurrentNode = cluster.getNodeById(metadataStore.getNodeId()).getPartitionIds();
                         RoutingStrategy routingStrategy = new RoutingStrategyFactory().updateRoutingStrategy(storeDefinition, cluster);
                         for (int partitionId = 0; partitionId < cluster.getNumberOfPartitions(); partitionId++) {
                             // For each partition in the cluster, determine if it needs to be served by the current node
-                            boolean currentPartitionIsServedByCurrentNode = false;
+                            boolean partitionIdIsServedByCurrentNode = false;
                             for (Integer replicatingPartition: routingStrategy.getReplicatingPartitionList(partitionId)) {
                                 if (partitionsMasteredByCurrentNode.contains(replicatingPartition)) {
-                                    currentPartitionIsServedByCurrentNode = true;
+                                    partitionIdIsServedByCurrentNode = true;
                                     break;
                                 }
                             }
-                            if (currentPartitionIsServedByCurrentNode) {
+                            if (partitionIdIsServedByCurrentNode) {
                                 // Then we need to fetch that partition, and add its size to the total
                                 String partitionKey = ReadOnlyUtils.PARTITION_DIRECTORY_PREFIX + partitionId;
                                 ReadOnlyStorageMetadata partitionMetadata = rootDirectory.getMetadata().getNestedMetadata(partitionKey);
