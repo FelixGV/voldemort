@@ -98,7 +98,7 @@ public class ReadOnlyStorageMetadata {
                 return new ReadOnlyStorageMetadata((Map<String, Object>) metadataObject);
             } catch (Exception e) {
                 throw new IllegalArgumentException("Could not parse ReadOnlyStorageMetadata for key '" + key + "'. " +
-                        "It contains: " + metadataObject.toString());
+                        "It contains: " + metadataObject.toString(), e);
             }
         } else {
             throw new IllegalArgumentException("The metadata key '" + key + "' does not contain nested metadata! " +

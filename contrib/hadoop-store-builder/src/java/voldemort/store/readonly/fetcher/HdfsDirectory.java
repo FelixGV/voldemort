@@ -78,6 +78,18 @@ public class HdfsDirectory {
         Collections.sort(allFiles);
     }
 
+    public void initializeMetadata(ReadOnlyStorageMetadata metadata) {
+        checkSumType = metadata.getCheckSumType();
+        if(checkSumType != CheckSumType.NONE) {
+            try {
+                expectedCheckSum = metadata.getCheckSum();
+            } catch(DecoderException e) {
+                logger.error("Error decoding checksum", e);
+                throw new VoldemortApplicationException(e);
+            }
+        }
+    }
+
     public void initializeMetadata(File diskFile) {
         try {
             metadata = new ReadOnlyStorageMetadata(diskFile);
@@ -85,16 +97,7 @@ public class HdfsDirectory {
             logger.error("Error reading metadata file ", e);
             throw new VoldemortApplicationException(e);
         }
-
-        checkSumType = metadata.getCheckSumType();
-        if(checkSumType != CheckSumType.NONE) {
-            try {
-            expectedCheckSum = metadata.getCheckSum();
-            } catch(DecoderException e) {
-                logger.error("Error decoding checksum", e);
-                throw new VoldemortApplicationException(e);
-            }
-        }
+        initializeMetadata(metadata);
     }
 
     public List<HdfsFile> getFiles() {

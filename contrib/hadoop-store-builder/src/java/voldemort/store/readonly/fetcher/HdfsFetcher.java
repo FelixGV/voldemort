@@ -38,7 +38,6 @@ import voldemort.client.ClientConfig;
 import voldemort.client.protocol.admin.AdminClient;
 import voldemort.client.protocol.admin.AdminClientConfig;
 import voldemort.cluster.Cluster;
-import voldemort.cluster.Node;
 import voldemort.routing.RoutingStrategy;
 import voldemort.routing.RoutingStrategyFactory;
 import voldemort.server.VoldemortConfig;
@@ -298,6 +297,7 @@ public class HdfsFetcher implements FileFetcher {
                                         estimatedDiskSize += Long.parseLong(diskSizeInBytes);
                                     }
                                     HdfsDirectory partitionDirectory = new HdfsDirectory(fs, new Path(rootPath, partitionKey));
+                                    partitionDirectory.initializeMetadata(partitionMetadata);
                                     directoriesToFetch.add(partitionDirectory);
                                 } else {
                                     logger.debug("Partition " + partitionId + " is served by this node but it is empty, so it will be skipped.");
@@ -343,7 +343,7 @@ public class HdfsFetcher implements FileFetcher {
                 logger.debug("directoriesToFetch for store '" + storeName + "': " + Arrays.toString(directoriesToFetch.toArray()));
                 for (HdfsDirectory directoryToFetch: directoriesToFetch) {
                     Map<HdfsFile, byte[]> fileCheckSumMap = fetchStrategy.fetch(directoryToFetch, destination);
-                    if(rootDirectory.validateCheckSum(fileCheckSumMap)) {
+                    if(directoryToFetch.validateCheckSum(fileCheckSumMap)) {
                         logger.info("Completed fetch: " + sourceFileUrl);
                     } else {
                         logger.error("Checksum did not match for " + directoryToFetch.toString() + " !");
