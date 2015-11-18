@@ -27,7 +27,6 @@ public class HdfsDirectory {
 
     private static final Logger logger = Logger.getLogger(HdfsDirectory.class);
 
-    private final FileSystem fs;
     private final Path source;
     private CheckSumType checkSumType = CheckSumType.NONE;
     private byte[] expectedCheckSum = null;
@@ -52,7 +51,6 @@ public class HdfsDirectory {
     }
 
     public HdfsDirectory(FileSystem fs, Path source) throws IOException {
-        this.fs = fs;
         this.source = source;
 
         FileStatus[] files = fs.listStatus(source);
