@@ -116,7 +116,7 @@ public class HdfsFetcher implements FileFetcher {
     public HdfsFetcher() {
         this(new VoldemortConfig(-1, ""), // Fake config with a bogus node ID and server config path
              (Long) null,
-             VoldemortConfig.REPORTING_INTERVAL_BYTES,
+             VoldemortConfig.DEFAULT_REPORTING_INTERVAL_BYTES,
              VoldemortConfig.DEFAULT_FETCHER_THROTTLE_INTERVAL_WINDOW_MS,
              VoldemortConfig.DEFAULT_FETCHER_BUFFER_SIZE,
              3,
@@ -174,7 +174,7 @@ public class HdfsFetcher implements FileFetcher {
     @Deprecated
     @Override
     public File fetch(String source, String dest) throws Exception {
-        return fetch(source, dest, VoldemortConfig.DEFAULT_STORAGE_SPACE_QUOTA_IN_KB);
+        return fetch(source, dest, VoldemortConfig.DEFAULT_DEFAULT_STORAGE_SPACE_QUOTA_IN_KB);
     }
 
     /**
@@ -410,7 +410,7 @@ public class HdfsFetcher implements FileFetcher {
                                       File dest,
                                       Long expectedDiskSize) {
         if(diskQuotaSizeInKB != null
-                && diskQuotaSizeInKB != VoldemortConfig.DEFAULT_STORAGE_SPACE_QUOTA_IN_KB) {
+                && diskQuotaSizeInKB != VoldemortConfig.DEFAULT_DEFAULT_STORAGE_SPACE_QUOTA_IN_KB) {
             String logMessage = "Store: " + storeName + ", Destination: " + dest.getAbsolutePath()
                                 + ", Expected disk size in KB: "
                                 + (expectedDiskSize / ByteUtils.BYTES_PER_KB)
