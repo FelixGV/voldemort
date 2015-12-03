@@ -337,6 +337,9 @@ public class AdminServiceRequestHandler implements RequestHandler {
                 ProtoUtils.writeMessage(outputStream,
                                         handleFetchFailure(request.getHandleFetchFailure()));
                 break;
+            case GET_CONFIG:
+                ProtoUtils.writeMessage(outputStream,
+                                        handleGetConfigRequest(request.getGetConfig()));
             default:
                 throw new VoldemortException("Unknown operation: " + request.getType());
         }
@@ -2142,4 +2145,24 @@ public class AdminServiceRequestHandler implements RequestHandler {
         return response.build();
     }
 
+
+    private VAdminProto.GetConfigResponse handleGetConfigRequest(VAdminProto.GetConfigRequest getConfig) {
+        VAdminProto.GetConfigResponse.Builder response =
+                VAdminProto.GetConfigResponse.newBuilder();
+
+        for (String configKey: getConfig.getConfigKeyList()) {
+            String configValue;
+            try {
+                configValue = voldemortConfig.getPublicConfigValue(configKey);
+            } catch (ConfigurationException e) {
+                logger.error("Received GetConfigRequest asking for forbidden config key: " + configKey, e);
+                configValue = e.getMessage();
+            }
+
+            VAdminProto.MapFieldEntry mapFieldEntry =
+                    VAdminProto.MapFieldEntry.newBuilder().setKey(configKey).setValue(configValue).build();
+            response.addConfigMap(mapFieldEntry);
+        }
+        return response.build();
+    }
 }

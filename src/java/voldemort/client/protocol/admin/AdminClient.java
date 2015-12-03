@@ -1676,6 +1676,38 @@ public class AdminClient implements Closeable {
                                              .next();
             return getRemoteStoreDefList(nodeId);
         }
+
+        /**
+         * Interrogates a remote server to get the value of some of its configuration parameters.
+         *
+         * @param nodeId of the server we wish to interrogate
+         * @param configKeys for which we want to retrieve the values
+         * @return a {@link Map<String,String>} of the requested config key/value pairs
+         */
+        public Map<String, String> getServerConfig(int nodeId, List<String> configKeys) {
+            VAdminProto.VoldemortAdminRequest request = VAdminProto.VoldemortAdminRequest.newBuilder()
+                                                                   .setType(VAdminProto.AdminRequestType.GET_CONFIG)
+                                                                   .setGetConfig(VAdminProto.GetConfigRequest.newBuilder().addAllConfigKey(configKeys))
+                                                                   .build();
+            VAdminProto.GetConfigResponse.Builder response = rpcOps.sendAndReceive(nodeId,
+                                                                                   request,
+                                                                                   VAdminProto.GetConfigResponse.newBuilder());
+
+            if (response.getInvalidConfigMapCount() > 0) {
+                String nodeName = currentCluster.getNodeById(nodeId).briefToString();
+                for (VAdminProto.MapFieldEntry entry: response.getInvalidConfigMapList()) {
+                    logger.error(nodeName + " responded with an error to our GetConfigRequest for key '" +
+                                 entry.getKey() + "': " + entry.getValue());
+                }
+            }
+
+            Map<String, String> serverConfig = Maps.newHashMap();
+            for (VAdminProto.MapFieldEntry entry: response.getConfigMapList()) {
+                serverConfig.put(entry.getKey(), entry.getValue());
+            }
+
+            return serverConfig;
+        }
     }
 
     /**
