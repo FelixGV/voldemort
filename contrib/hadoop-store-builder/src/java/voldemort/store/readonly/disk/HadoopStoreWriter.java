@@ -73,18 +73,17 @@ public class HadoopStoreWriter
 
     private FileSystem fs;
 
-    /*
+    /**
      * This variable is used to figure out the file extension for index and data
      * files. When the server supports compression, this variable's value is
      * typically ".gz" or else it holds and empty string
      */
     private String fileExtension = null;
 
-    /*
-     * These variables are used to track the size of the files produced by the
-     * reducer
-     */
+    /** Used to track the size of the index files produced by the reducer */
     private long[] indexFileSizeInBytes;
+
+    /** Used to track the size of the data files produced by the reducer */
     private long[] valueFileSizeInBytes;
 
     public HadoopStoreWriter() {

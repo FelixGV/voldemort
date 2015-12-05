@@ -32,6 +32,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.TextInputFormat;
 import org.junit.Assert;
 import org.junit.Test;
@@ -68,6 +69,7 @@ import voldemort.utils.ByteArray;
 import voldemort.utils.ByteUtils;
 import voldemort.utils.ClosableIterator;
 import voldemort.utils.Pair;
+import voldemort.utils.Props;
 import voldemort.versioning.Versioned;
 
 
@@ -152,7 +154,9 @@ public class HadoopStoreBuilderTest {
                                                           .setPreferredWrites(1)
                                                           .setRequiredWrites(1)
                                                           .build();
-        HadoopStoreBuilder builder = new HadoopStoreBuilder(new Configuration(),
+        HadoopStoreBuilder builder = new HadoopStoreBuilder("testRowsLessThanNodes",
+                                                            new Props(),
+                                                            new JobConf(),
                                                             TextStoreMapper.class,
                                                             TextInputFormat.class,
                                                             cluster,
@@ -228,7 +232,9 @@ public class HadoopStoreBuilderTest {
                                                           .setPreferredWrites(1)
                                                           .setRequiredWrites(1)
                                                           .build();
-        HadoopStoreBuilder builder = new HadoopStoreBuilder(new Configuration(),
+        HadoopStoreBuilder builder = new HadoopStoreBuilder("testHadoopBuild",
+                                                            new Props(),
+                                                            new JobConf(),
                                                             TextStoreMapper.class,
                                                             TextInputFormat.class,
                                                             cluster,
@@ -246,7 +252,9 @@ public class HadoopStoreBuilderTest {
                                                             false);
         builder.build();
 
-        builder = new HadoopStoreBuilder(new Configuration(),
+        builder = new HadoopStoreBuilder("testHadoopBuild",
+                                         new Props(),
+                                         new JobConf(),
                                          TextStoreMapper.class,
                                          TextInputFormat.class,
                                          cluster,

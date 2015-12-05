@@ -128,11 +128,15 @@ public abstract class AbstractHadoopJob /*extends AbstractJob*/ {
         }
     }
 
-    public JobConf createJobConf() throws IOException,
+    /**
+     *
+     * @param conf Base {@link JobConf} to start from.
+     * @return
+     * @throws IOException
+     * @throws URISyntaxException
+     */
+    public JobConf prepareJobConf(JobConf conf) throws IOException,
             URISyntaxException {
-        JobConf conf = new JobConf();
-        // set custom class loader with custom find resource strategy.
-
         conf.setJobName(getId());
         conf.setNumReduceTasks(0);
 
@@ -148,6 +152,7 @@ public abstract class AbstractHadoopJob /*extends AbstractJob*/ {
 
             info("Running locally, no hadoop jar set.");
         } else {
+            // set custom class loader with custom find resource strategy.
             setClassLoaderAndJar(conf, getClass());
             info("Setting hadoop jar file for class:" + getClass() + "  to " + conf.getJar());
             info("*************************************************************************");
