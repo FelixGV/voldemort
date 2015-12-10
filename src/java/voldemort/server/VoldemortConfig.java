@@ -141,6 +141,7 @@ public class VoldemortConfig implements Serializable {
     public static final String READONLY_COMPRESSION_CODEC = "readonly.compression.codec";
     public static final String READONLY_MODIFY_PROTOCOL = "readonly.modify.protocol";
     public static final String READONLY_MODIFY_PORT = "readonly.modify.port";
+    public static final String READONLY_BUILD_PRIMARY_REPLICAS_ONLY = "readonly.build.primary.replicas.only";
     public static final String PUSH_HA_ENABLED = "push.ha.enabled";
     public static final String PUSH_HA_CLUSTER_ID = "push.ha.cluster.id";
     public static final String PUSH_HA_LOCK_PATH = "push.ha.lock.path";
@@ -344,6 +345,7 @@ public class VoldemortConfig implements Serializable {
         defaultConfig.put(READONLY_COMPRESSION_CODEC, "NO_CODEC");
         defaultConfig.put(READONLY_MODIFY_PROTOCOL, (String) null);
         defaultConfig.put(READONLY_MODIFY_PORT, -1);
+        defaultConfig.put(READONLY_BUILD_PRIMARY_REPLICAS_ONLY, true);
 
         defaultConfig.put(PUSH_HA_CLUSTER_ID, (String) null);
         defaultConfig.put(PUSH_HA_LOCK_PATH, (String) null);
@@ -578,6 +580,7 @@ public class VoldemortConfig implements Serializable {
     private long defaultStorageSpaceQuotaInKB;
     private String modifiedProtocol;
     private int modifiedPort;
+    private boolean readOnlyBuildPrimaryReplicasOnly;
 
     private boolean highAvailabilityPushEnabled;
     private String highAvailabilityPushClusterId;
@@ -703,6 +706,10 @@ public class VoldemortConfig implements Serializable {
 
         // At this point, all defaults have been set, so we can assume that all properties are present.
         // If that's not the case, the correct behavior is to bubble up the UndefinedPropertyException.
+        // Below, we set props to null as a defensive measure against future code changes, just to ensure
+        // that all of the initialization code below only uses allProps, not props, since only the former
+        // contains all defaults properly set.
+        props = null;
 
         this.nodeId = this.allProps.getInt(NODE_ID);
         this.voldemortHome = this.allProps.getString(VOLDEMORT_HOME);
@@ -770,8 +777,9 @@ public class VoldemortConfig implements Serializable {
         this.readOnlyMaxVersionsStatsFile = this.allProps.getInt(READONLY_STATS_FILE_MAX_VERSIONS);
         this.readOnlyMaxValueBufferAllocationSize = this.allProps.getInt(READONLY_MAX_VALUE_BUFFER_ALLOCATION_SIZE);
         this.readOnlyCompressionCodec = this.allProps.getString(READONLY_COMPRESSION_CODEC);
-        this.modifiedProtocol = props.getString(READONLY_MODIFY_PROTOCOL, null);
-        this.modifiedPort = props.getInt(READONLY_MODIFY_PORT, -1);
+        this.modifiedProtocol = this.allProps.getString(READONLY_MODIFY_PROTOCOL);
+        this.modifiedPort = this.allProps.getInt(READONLY_MODIFY_PORT);
+        this.readOnlyBuildPrimaryReplicasOnly = this.allProps.getBoolean(READONLY_BUILD_PRIMARY_REPLICAS_ONLY);
 
         this.highAvailabilityPushClusterId = this.allProps.getString(PUSH_HA_CLUSTER_ID);
         this.highAvailabilityPushLockPath = this.allProps.getString(PUSH_HA_LOCK_PATH);
@@ -1093,6 +1101,31 @@ public class VoldemortConfig implements Serializable {
         }
 
         return new VoldemortConfig(properties);
+    }
+
+    /**
+     * This is a generic function for retrieving any config value. The returned value
+     * is the one the server is operating with, no matter whether it comes from defaults
+     * or from the user-supplied configuration.
+     *
+     * This function only provides access to configs which are deemed safe to share
+     * publicly (i.e.: not security-related configs). The list of configs which are
+     * considered off-limit can itself be configured via '{@value #RESTRICTED_CONFIGS}'.
+     *
+     * @param key config key for which to retrieve the value.
+     * @return the value for the requested config key, in String format.
+     *         May return null if the key exists and its value is explicitly set to null.
+     * @throws UndefinedPropertyException if the requested key does not exist in the config.
+     * @throws ConfigurationException if the requested key is not publicly available.
+     */
+    public String getPublicConfigValue(String key) throws ConfigurationException {
+        if (!allProps.containsKey(key)) {
+            throw new UndefinedPropertyException("The requested config key does not exist.");
+        }
+        if (restrictedConfigs.contains(key)) {
+            throw new ConfigurationException("The requested config key is not publicly available!");
+        }
+        return allProps.get(key);
     }
 
     public int getNodeId() {
@@ -3378,6 +3411,23 @@ public class VoldemortConfig implements Serializable {
     }
 
     /**
+     * Whether the server should advertise itself as capable of handling
+     * the BuildAndPushJob's "build.primary.replicas.only" mode.
+     *
+     * <ul>
+     * <li>Property : "{@value #READONLY_BUILD_PRIMARY_REPLICAS_ONLY}"</li>
+     * <li>Default : true</li>
+     * </ul>
+     */
+    public void setReadOnlyBuildPrimaryReplicasOnly(boolean readOnlyBuildPrimaryReplicasOnly) {
+        this.readOnlyBuildPrimaryReplicasOnly = readOnlyBuildPrimaryReplicasOnly;
+    }
+
+    public boolean isReadOnlyBuildPrimaryReplicasOnly() {
+        return this.readOnlyBuildPrimaryReplicasOnly;
+    }
+
+    /**
      * Set modified port used to fetch file.
      *
      * <ul>
@@ -3979,25 +4029,4 @@ public class VoldemortConfig implements Serializable {
     public boolean isNioConnectorKeepAlive() {
         return nioConnectorKeepAlive;
     }
-
-    /**
-     * This is a generic function for retrieving any config value.
-     *
-     * It will only provide access to configs which are deemed safe to share publicly
-     * (i.e.: not security-related configs).
-     *
-     * @param key config key for which to retrieve the value.
-     * @return the value for the requested config key, in String format. May be null.
-     * @throws ConfigurationException if the requested key is not publicly available.
-     */
-    public String getPublicConfigValue(String key) throws ConfigurationException {
-        if (!allProps.containsKey(key)) {
-            throw new UndefinedPropertyException("The requested config key does not exist.");
-        }
-        if (restrictedConfigs.contains(key)) {
-            throw new ConfigurationException("The requested config key is not publicly available!");
-        }
-        return allProps.get(key);
-    }
-
 }

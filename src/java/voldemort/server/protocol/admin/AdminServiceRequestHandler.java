@@ -340,6 +340,7 @@ public class AdminServiceRequestHandler implements RequestHandler {
             case GET_CONFIG:
                 ProtoUtils.writeMessage(outputStream,
                                         handleGetConfigRequest(request.getGetConfig()));
+                break;
             default:
                 throw new VoldemortException("Unknown operation: " + request.getType());
         }
@@ -2147,21 +2148,20 @@ public class AdminServiceRequestHandler implements RequestHandler {
 
 
     private VAdminProto.GetConfigResponse handleGetConfigRequest(VAdminProto.GetConfigRequest getConfig) {
-        VAdminProto.GetConfigResponse.Builder response =
-                VAdminProto.GetConfigResponse.newBuilder();
+        VAdminProto.GetConfigResponse.Builder response = VAdminProto.GetConfigResponse.newBuilder();
 
         for (String configKey: getConfig.getConfigKeyList()) {
-            String configValue;
+            VAdminProto.MapFieldEntry.Builder mapFieldEntryBuilder = VAdminProto.MapFieldEntry
+                                                                                .newBuilder()
+                                                                                .setKey(configKey);
             try {
-                configValue = voldemortConfig.getPublicConfigValue(configKey);
+                String configValue = voldemortConfig.getPublicConfigValue(configKey);
+                response.addConfigMap(mapFieldEntryBuilder.setValue(configValue));
             } catch (ConfigurationException e) {
-                logger.error("Received GetConfigRequest asking for forbidden config key: " + configKey, e);
-                configValue = e.getMessage();
+                logger.error("Received GetConfigRequest asking for forbidden or missing config key: " + configKey, e);
+                String errorMessage = e.getMessage();
+                response.addInvalidConfigMap(mapFieldEntryBuilder.setValue(errorMessage));
             }
-
-            VAdminProto.MapFieldEntry mapFieldEntry =
-                    VAdminProto.MapFieldEntry.newBuilder().setKey(configKey).setValue(configValue).build();
-            response.addConfigMap(mapFieldEntry);
         }
         return response.build();
     }
