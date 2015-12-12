@@ -131,6 +131,22 @@ public class Props implements Map<String, String> {
         return props.put(key, value.toString());
     }
 
+    public String put(String key, Boolean value) {
+        return props.put(key, value.toString());
+    }
+
+    public String put(String key, List<String> listOfValues) {
+        String serializedValue = null;
+        for (String singleValue: listOfValues) {
+            if (serializedValue == null) {
+                serializedValue = singleValue;
+            } else {
+                serializedValue += "," + singleValue;
+            }
+        }
+        return props.put(key, serializedValue);
+    }
+
     public Props with(String key, String value) {
         put(key, value);
         return this;
@@ -147,6 +163,11 @@ public class Props implements Map<String, String> {
     }
 
     public Props with(String key, Long value) {
+        put(key, value);
+        return this;
+    }
+
+    public Props with(String key, Boolean value) {
         put(key, value);
         return this;
     }
