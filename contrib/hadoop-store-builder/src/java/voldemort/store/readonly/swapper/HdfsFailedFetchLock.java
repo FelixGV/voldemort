@@ -56,6 +56,12 @@ import com.google.common.collect.Sets;
  *
  *      hdfs://namenode:port/baseDir/clusterId/nodeId/storeName/storeVersion/unique-name
  *
+ * N.B.: This class makes use of rename operations as a way to do atomic modifications on HDFS.
+ * Because the atomic behavior is important in this context, we purposefully do NOT use
+ * {@link voldemort.store.readonly.mr.utils.HadoopUtils#mv(org.apache.hadoop.fs.FileSystem, org.apache.hadoop.fs.Path, org.apache.hadoop.fs.Path)}
+ * since that API will do a copy and delete on S3 filesystems rather than an atomic move.
+ * Therefore, {@link HdfsFailedFetchLock} and BnP HA in general are NOT supported on S3.
+ *
  */
 public class HdfsFailedFetchLock extends FailedFetchLock {
     private final static Logger logger = Logger.getLogger(HdfsFailedFetchLock.class);

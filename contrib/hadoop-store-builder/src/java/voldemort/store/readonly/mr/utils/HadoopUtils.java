@@ -35,8 +35,10 @@ import java.util.regex.Pattern;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.CommonConfigurationKeys;
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.hdfs.web.HftpFileSystem;
@@ -471,5 +473,35 @@ public class HadoopUtils {
             }
         }
         return fs;
+    }
+
+    /**
+     * This simple helper function abstracts away the implementation-specific limitations
+     * of certain file systems.
+     *
+     * For example, the s3 and s3n filesystems do not support move operation, so we
+     * attempt to copy and delete original instead.
+     *
+     * N.B.: Use of s3 is considered experimental! Use at your own risk!
+     *
+     * @param fs {@link FileSystem} to use
+     * @param src original file location
+     * @param dest final file location
+     * @throws IOException
+     */
+    public static void mv(FileSystem fs, Path src, Path dest) throws IOException {
+        if (fs.getScheme().toLowerCase().contains("s3")) {
+            logger.info("Copying " + src + " to " + dest + " (and deleting the original afterwards)");
+            FileUtil.copy(fs,
+                          src,
+                          fs,
+                          dest,
+                          true, // delete source
+                          false, // overwrite destination
+                          fs.getConf());
+        } else {
+            logger.info("Moving " + src + " to " + dest);
+            fs.rename(src, dest);
+        }
     }
 }

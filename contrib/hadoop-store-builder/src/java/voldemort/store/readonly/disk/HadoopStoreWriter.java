@@ -47,6 +47,7 @@ import voldemort.store.readonly.checksum.CheckSumMetadata;
 import voldemort.store.readonly.mr.AbstractStoreBuilderConfigurable;
 import voldemort.store.readonly.mr.HadoopStoreBuilder;
 import voldemort.store.readonly.mr.azkaban.VoldemortBuildAndPushJob;
+import voldemort.store.readonly.mr.utils.HadoopUtils;
 import voldemort.utils.ByteUtils;
 
 public class HadoopStoreWriter
@@ -425,17 +426,15 @@ public class HadoopStoreWriter
             Path indexFile = new Path(outputDir, chunkFileName + INDEX_FILE_EXTENSION + fileExtension);
             Path valueFile = new Path(outputDir, chunkFileName + DATA_FILE_EXTENSION + fileExtension);
 
-            logger.info("Moving " + this.taskIndexFileName[chunkId] + " to " + indexFile);
             if(outputFs.exists(indexFile)) {
                 outputFs.delete(indexFile, true);
             }
-            fs.rename(taskIndexFileName[chunkId], indexFile);
+            HadoopUtils.mv(fs, taskIndexFileName[chunkId], indexFile);
 
-            logger.info("Moving " + this.taskValueFileName[chunkId] + " to " + valueFile);
             if(outputFs.exists(valueFile)) {
                 outputFs.delete(valueFile, true);
             }
-            fs.rename(this.taskValueFileName[chunkId], valueFile);
+            HadoopUtils.mv(fs, taskValueFileName[chunkId], valueFile);
         }
     }
 }
