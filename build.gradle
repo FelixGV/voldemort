@@ -1,6 +1,8 @@
 
 apply plugin: 'java'
 apply plugin: 'war'
+apply plugin: 'maven'
+apply plugin: 'signing'
 
 buildscript {
   repositories { jcenter() }
@@ -161,7 +163,7 @@ task srcJar(type: Jar, dependsOn: classes) {
     destinationDir = project.file(distDir)
 }
 
-task javadocJar(type: Jar) {
+task javadocJar(type: Jar, dependsOn: javadoc) {
     enabled = javadocEnabled
     classifier = 'javadoc'
     from javadoc
@@ -174,10 +176,96 @@ task bnpJar(dependsOn: shadowJar) {
 
 artifacts {
     archives jar
-    archives testJar
-    archives contribJar
     archives srcJar
     archives javadocJar
+    archives shadowJar
+
+    // There seems to be a type/classifier clash with the artifacts below which prevent them from being uploaded.
+    //archives testJar
+    //archives contribJar
+}
+
+if (project.hasProperty("signing.enabled") && project.property("signing.enabled") == "true") {
+    group = "com.project-voldemort"
+    version = voldVersion
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+    
+                repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
+    
+                snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+                    authentication(userName: ossrhUsername, password: ossrhPassword)
+                }
+    
+                // addFilter('war') {artifact, file ->
+                //     artifact.ext != 'war'
+                // }
+
+                addFilter('the_filter') {artifact, file ->
+                    artifact.ext == 'jar' || artifact.ext == 'pom'
+                }
+    
+                pom.project {
+                    name 'Voldemort'
+                    packaging 'jar'
+                    // optionally artifactId can be defined here
+                    description 'Voldemort is a distributed key value store'
+                    url 'http://www.project-voldemort.com'
+    
+                    scm {
+                        connection 'scm:git:git@github.com:voldemort/voldemort.git'
+                        developerConnection 'scm:git:git@github.com:voldemort/voldemort.git'
+                        url 'https://github.com/voldemort/voldemort'
+                    }
+    
+                    licenses {
+                        license {
+                            name 'The Apache License, Version 2.0'
+                            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+                        }
+                    }
+    
+                    mailingLists {
+                        mailingList {
+                            name 'Voldemort mailing List'
+                            subscribe 'https://groups.google.com/forum/#!forum/project-voldemort'
+                            post 'project-voldemort@googlegroups.com'
+                            archive 'https://groups.google.com/forum/#!forum/project-voldemort'
+                        }
+                    }
+    
+                    issueManagement {
+                        system 'GitHub'
+                        url 'https://github.com/voldemort/voldemort/issues'
+                    }
+
+                    developers {
+                        developer {
+                            id 'v-team'
+                            name 'The V-Team'
+                            email 'project-voldemort@googlegroups.com'
+                        }
+                    }
+                }
+            }
+        }
+    }
+  
+    signing {
+        sign configurations.archives
+    }
+  
+    uploadArchives {
+        repositories {
+            mavenDeployer {
+                beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+            }
+        }
+    }
 }
 
 clean {
