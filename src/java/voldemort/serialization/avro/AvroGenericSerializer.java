@@ -39,6 +39,7 @@ import voldemort.serialization.Serializer;
 public class AvroGenericSerializer implements Serializer<Object> {
 
     private final Schema typeDef;
+    private final int maxSize;
 
     /**
      * Constructor accepting the schema definition as a JSON string.
@@ -46,11 +47,23 @@ public class AvroGenericSerializer implements Serializer<Object> {
      * @param schema a serialized JSON object representing a Avro schema.
      */
     public AvroGenericSerializer(String schema) {
+        this(schema, Integer.MAX_VALUE);
+    }
+
+    /**
+     * Constructor accepting the schema definition as a JSON string and a max size
+     * for serialized objects.
+     *
+     * @param schema a serialized JSON object representing a Avro schema.
+     * @param maxSize the max size, in bytes, that records can have.
+     */
+    public AvroGenericSerializer(String schema, int maxSize) {
         typeDef = Schema.parse(schema);
+        this.maxSize = maxSize;
     }
 
     public byte[] toBytes(Object object) {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        BoundedByteArrayOutputStream output = new BoundedByteArrayOutputStream(maxSize);
         Encoder encoder = new BinaryEncoder(output);
         GenericDatumWriter<Object> datumWriter = null;
         try {

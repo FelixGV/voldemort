@@ -34,6 +34,7 @@ import org.apache.avro.io.Encoder;
 import voldemort.serialization.SerializationException;
 import voldemort.serialization.SerializationUtils;
 import voldemort.serialization.Serializer;
+import voldemort.serialization.avro.BoundedByteArrayOutputStream;
 
 /**
  * Avro serializer that uses the generic representation for Avro data. This
@@ -50,29 +51,41 @@ public class AvroVersionedGenericSerializer implements Serializer<Object> {
     // reader's schema
     private final Schema typeDef;
 
+    private final int maxSize;
+
     /**
      * Constructor accepting the schema definition as a JSON string.
      * 
      * @param schema a serialized JSON object representing a Avro schema.
      */
     public AvroVersionedGenericSerializer(String schema) {
+        this(getMap(schema));
+    }
 
-        this.typeDefVersions = new TreeMap<Integer, String>();
-        this.typeDefVersions.put(0, schema);
-        newestVersion = typeDefVersions.lastKey();
-        typeDef = Schema.parse(typeDefVersions.get(newestVersion));
+    public AvroVersionedGenericSerializer(String schema, int maxSize) {
+        this(getMap(schema), maxSize);
     }
 
     public AvroVersionedGenericSerializer(Map<Integer, String> typeDefVersions) {
+        this(typeDefVersions, Integer.MAX_VALUE);
+    }
 
-        this.typeDefVersions = new TreeMap<Integer, String>(typeDefVersions);
-        newestVersion = this.typeDefVersions.lastKey();
-        typeDef = Schema.parse(typeDefVersions.get(newestVersion));
 
+    public AvroVersionedGenericSerializer(Map<Integer, String> typeDefVersions, int maxSize) {
+      this.typeDefVersions = new TreeMap<Integer, String>(typeDefVersions);
+      this.newestVersion = this.typeDefVersions.lastKey();
+      this.typeDef = Schema.parse(typeDefVersions.get(newestVersion));
+      this.maxSize = maxSize;
+    }
+
+    private static TreeMap<Integer, String> getMap(String schema) {
+        TreeMap<Integer, String> treeMap = new TreeMap<Integer, String>();
+        treeMap.put(0, schema);
+        return treeMap;
     }
 
     public byte[] toBytes(Object object) {
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        BoundedByteArrayOutputStream output = new BoundedByteArrayOutputStream(maxSize);
         Encoder encoder = new BinaryEncoder(output);
         GenericDatumWriter<Object> datumWriter = null;
 
@@ -111,7 +124,7 @@ public class AvroVersionedGenericSerializer implements Serializer<Object> {
      */
     private byte[] toBytes(Object object, Schema writer, Integer writerVersion) {
 
-        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        BoundedByteArrayOutputStream output = new BoundedByteArrayOutputStream(maxSize);
         Encoder encoder = new BinaryEncoder(output);
         GenericDatumWriter<Object> datumWriter = null;
 

@@ -16,8 +16,8 @@
 
 package voldemort.serialization;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
@@ -49,7 +49,7 @@ public class SerializationUtils {
         return javaPair[1].trim();
     }
 
-    public static void close(ByteArrayOutputStream stream) {
+    public static void close(OutputStream stream) {
         if(stream != null) {
             try {
                 stream.close();

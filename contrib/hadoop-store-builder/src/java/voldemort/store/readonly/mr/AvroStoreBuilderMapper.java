@@ -33,11 +33,9 @@ import org.apache.hadoop.mapred.Reporter;
 
 import org.apache.log4j.Logger;
 import voldemort.VoldemortException;
-import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.serialization.DefaultSerializerFactory;
 import voldemort.serialization.Serializer;
 import voldemort.serialization.SerializerDefinition;
-import voldemort.serialization.SerializerFactory;
 import voldemort.serialization.avro.AvroGenericSerializer;
 import voldemort.serialization.avro.versioned.AvroVersionedGenericSerializer;
 import voldemort.store.StoreDefinition;
@@ -59,7 +57,6 @@ public class AvroStoreBuilderMapper extends
     protected BuildAndPushMapper mapper = new BuildAndPushMapper();
     private AvroCollectorWrapper collectorWrapper = new AvroCollectorWrapper();
 
-    protected ConsistentRoutingStrategy routingStrategy;
     protected Serializer keySerializer;
     protected Serializer valueSerializer;
 
@@ -140,6 +137,10 @@ public class AvroStoreBuilderMapper extends
     public void configure(JobConf conf) {
         super.setConf(conf);
 
+        // Very conservative maximums, just to avoid OOMing...
+        final int MAX_KEY_SIZE = 1 * 1024 * 1024; // 1 MB
+        final int MAX_VALUE_SIZE = 25 * 1024 * 1024; // 25 MB
+
         this.mapper.configure(conf);
 
         List<StoreDefinition> storeDefs = new StoreDefinitionsMapper().readStoreList(new StringReader(conf.get("stores.xml")));
@@ -151,16 +152,6 @@ public class AvroStoreBuilderMapper extends
         valueSerializerDefinition = getStoreDef().getValueSerializer();
 
         try {
-            SerializerFactory factory = new DefaultSerializerFactory();
-
-            if(conf.get("serializer.factory") != null) {
-                factory = (SerializerFactory) Class.forName(conf.get("serializer.factory"))
-                                                   .newInstance();
-            }
-
-            keySerializer = factory.getSerializer(keySerializerDefinition);
-            valueSerializer = factory.getSerializer(valueSerializerDefinition);
-
             keyField = conf.get(VoldemortBuildAndPushJob.AVRO_KEY_FIELD);
 
             valField = conf.get(VoldemortBuildAndPushJob.AVRO_VALUE_FIELD);
@@ -169,8 +160,8 @@ public class AvroStoreBuilderMapper extends
             valSchema = conf.get(AVRO_VALUE_SCHEMA);
 
             if(keySerializerDefinition.getName().equals(DefaultSerializerFactory.AVRO_GENERIC_TYPE_NAME)) {
-                keySerializer = new AvroGenericSerializer(keySchema);
-                valueSerializer = new AvroGenericSerializer(valSchema);
+                keySerializer = new AvroGenericSerializer(keySchema, MAX_KEY_SIZE);
+                valueSerializer = new AvroGenericSerializer(valSchema, MAX_VALUE_SIZE);
             } else {
 
                 if(keySerializerDefinition.hasVersion()) {
@@ -178,18 +169,18 @@ public class AvroStoreBuilderMapper extends
                     for(Map.Entry<Integer, String> entry: keySerializerDefinition.getAllSchemaInfoVersions()
                                                                                  .entrySet())
                         versions.put(entry.getKey(), entry.getValue());
-                    keySerializer = new AvroVersionedGenericSerializer(versions);
+                    keySerializer = new AvroVersionedGenericSerializer(versions, MAX_KEY_SIZE);
                 } else
-                    keySerializer = new AvroVersionedGenericSerializer(keySerializerDefinition.getCurrentSchemaInfo());
+                    keySerializer = new AvroVersionedGenericSerializer(keySerializerDefinition.getCurrentSchemaInfo(), MAX_KEY_SIZE);
 
                 if(valueSerializerDefinition.hasVersion()) {
                     Map<Integer, String> versions = new HashMap<Integer, String>();
                     for(Map.Entry<Integer, String> entry: valueSerializerDefinition.getAllSchemaInfoVersions()
                                                                                    .entrySet())
                         versions.put(entry.getKey(), entry.getValue());
-                    valueSerializer = new AvroVersionedGenericSerializer(versions);
+                    valueSerializer = new AvroVersionedGenericSerializer(versions, MAX_VALUE_SIZE);
                 } else
-                    valueSerializer = new AvroVersionedGenericSerializer(valueSerializerDefinition.getCurrentSchemaInfo());
+                    valueSerializer = new AvroVersionedGenericSerializer(valueSerializerDefinition.getCurrentSchemaInfo(), MAX_VALUE_SIZE);
 
             }
 
