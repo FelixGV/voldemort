@@ -128,8 +128,12 @@ public class AvroStoreBuilderMapper extends
             recordCounter++;
         } catch (OutOfMemoryError oom) {
             logger.error("Got OOM while mapping record #" + recordCounter + " !");
-            logger.error("keyRecord: " + (keyBytes == null ? "caused OOM" : keyRecord));
-            logger.error("valRecord: " + (valBytes == null ? "caused OOM" : valRecord));
+            if (keyBytes == null) {
+                logger.error("keyRecord caused OOM!");
+            } else {
+                logger.error("keyRecord: " + keyRecord);
+                logger.error("valRecord: " + (valBytes == null ? "caused OOM" : valRecord));
+            }
             throw new VoldemortException("Got OOM in " + AvroStoreBuilderMapper.class.getSimpleName() + "#map().", oom);
         }
     }
