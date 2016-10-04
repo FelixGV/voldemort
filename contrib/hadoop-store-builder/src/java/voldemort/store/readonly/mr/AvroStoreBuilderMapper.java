@@ -114,12 +114,13 @@ public class AvroStoreBuilderMapper extends
                     AvroCollector<Pair<ByteBuffer, ByteBuffer>> collector,
                     Reporter reporter) throws IOException {
 
+        byte[] keyBytes = null, valBytes = null;
         Object keyRecord = null, valRecord = null;
         try {
             keyRecord = record.get(keyField);
             valRecord = record.get(valField);
-            byte[] keyBytes = keySerializer.toBytes(keyRecord);
-            byte[] valBytes = valueSerializer.toBytes(valRecord);
+            keyBytes = keySerializer.toBytes(keyRecord);
+            valBytes = valueSerializer.toBytes(valRecord);
 
             this.collectorWrapper.setCollector(collector);
             this.mapper.map(keyBytes, valBytes, this.collectorWrapper);
@@ -127,8 +128,8 @@ public class AvroStoreBuilderMapper extends
             recordCounter++;
         } catch (OutOfMemoryError oom) {
             logger.error("Got OOM while mapping record #" + recordCounter + " !");
-            logger.error("keyRecord: " + (keyRecord == null ? "null" : keyRecord));
-            logger.error("valRecord: " + (valRecord == null ? "null" : valRecord));
+            logger.error("keyRecord: " + (keyBytes == null ? "caused OOM" : keyRecord));
+            logger.error("valRecord: " + (valBytes == null ? "caused OOM" : valRecord));
             throw new VoldemortException("Got OOM in " + AvroStoreBuilderMapper.class.getSimpleName() + "#map().", oom);
         }
     }
