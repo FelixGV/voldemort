@@ -72,6 +72,8 @@ public class AvroStoreBuilderMapper extends
     private SerializerDefinition keySerializerDefinition;
     private SerializerDefinition valueSerializerDefinition;
 
+    private int recordCounter = 0;
+
     class AvroCollectorWrapper
             extends AbstractCollectorWrapper<AvroCollector<Pair<ByteBuffer, ByteBuffer>>> {
         ByteBuffer keyBB, valueBB;
@@ -124,8 +126,12 @@ public class AvroStoreBuilderMapper extends
 
             this.collectorWrapper.setCollector(collector);
             this.mapper.map(keyBytes, valBytes, this.collectorWrapper);
+
+            recordCounter++;
         } catch (OutOfMemoryError oom) {
-            logger.error("Got OOM! keyRecord: " + keyRecord + "\nvalRecord: " + valRecord);
+            logger.error("Got OOM while mapping record #" + recordCounter + " !");
+            logger.error("keyRecord: " + keyRecord);
+            logger.error("valRecord: " + valRecord);
             throw new VoldemortException("Got OOM in " + AvroStoreBuilderMapper.class.getSimpleName() + "#map().", oom);
         }
     }
