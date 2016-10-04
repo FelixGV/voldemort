@@ -31,6 +31,7 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.JobConfigurable;
 import org.apache.hadoop.mapred.Reporter;
 
+import org.apache.log4j.Logger;
 import voldemort.VoldemortException;
 import voldemort.routing.ConsistentRoutingStrategy;
 import voldemort.serialization.DefaultSerializerFactory;
@@ -49,6 +50,8 @@ import voldemort.xml.StoreDefinitionsMapper;
  */
 public class AvroStoreBuilderMapper extends
         AvroMapper<GenericData.Record, Pair<ByteBuffer, ByteBuffer>> implements JobConfigurable {
+
+    private static final Logger logger = Logger.getLogger(AvroStoreBuilderMapper.class);
 
     public static final String AVRO_KEY_SCHEMA = "avro.key.schema";
     public static final String AVRO_VALUE_SCHEMA = "avro.value.schema";
@@ -112,11 +115,19 @@ public class AvroStoreBuilderMapper extends
                     AvroCollector<Pair<ByteBuffer, ByteBuffer>> collector,
                     Reporter reporter) throws IOException {
 
-        byte[] keyBytes = keySerializer.toBytes(record.get(keyField));
-        byte[] valBytes = valueSerializer.toBytes(record.get(valField));
+        Object keyRecord = null, valRecord = null;
+        try {
+            keyRecord = record.get(keyField);
+            valRecord = record.get(valField);
+            byte[] keyBytes = keySerializer.toBytes(keyRecord);
+            byte[] valBytes = valueSerializer.toBytes(valRecord);
 
-        this.collectorWrapper.setCollector(collector);
-        this.mapper.map(keyBytes, valBytes, this.collectorWrapper);
+            this.collectorWrapper.setCollector(collector);
+            this.mapper.map(keyBytes, valBytes, this.collectorWrapper);
+        } catch (OutOfMemoryError oom) {
+            logger.error("Got OOM! keyRecord: " + keyRecord + "\nvalRecord: " + valRecord);
+            throw new VoldemortException("Got OOM in " + AvroStoreBuilderMapper.class.getSimpleName() + "#map().", oom);
+        }
     }
 
     @Override
