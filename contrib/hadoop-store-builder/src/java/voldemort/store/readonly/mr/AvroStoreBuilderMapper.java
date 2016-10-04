@@ -127,8 +127,8 @@ public class AvroStoreBuilderMapper extends
             recordCounter++;
         } catch (OutOfMemoryError oom) {
             logger.error("Got OOM while mapping record #" + recordCounter + " !");
-            logger.error("keyRecord: " + keyRecord);
-            logger.error("valRecord: " + valRecord);
+            logger.error("keyRecord: " + (keyRecord == null ? "null" : keyRecord));
+            logger.error("valRecord: " + (valRecord == null ? "null" : valRecord));
             throw new VoldemortException("Got OOM in " + AvroStoreBuilderMapper.class.getSimpleName() + "#map().", oom);
         }
     }
@@ -153,7 +153,6 @@ public class AvroStoreBuilderMapper extends
 
         try {
             keyField = conf.get(VoldemortBuildAndPushJob.AVRO_KEY_FIELD);
-
             valField = conf.get(VoldemortBuildAndPushJob.AVRO_VALUE_FIELD);
 
             keySchema = conf.get(AVRO_KEY_SCHEMA);
